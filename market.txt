@@ -1,0 +1,102 @@
+Compte rendu stratégique — CONTRA
+Le concept en une phrase
+L'utilisateur choisit un sujet, l'IA prend automatiquement le camp opposé, et un scoring sur 4 critères (logique, rhétorique, preuves, originalité) évalue la qualité de l'argumentation.
+
+Forces du produit
+1. Positionnement unique
+Aucun concurrent direct ne combine IA argumentative + scoring explicable + gamification compétitive. Les apps existantes (ChatGPT, Debatable) sont soit généralistes soit sans dimension compétitive. Contra crée une nouvelle catégorie.
+
+2. Loop de rétention puissante
+Le scoring sur 100 points avec 4 critères pondérés crée un mécanisme de "je peux faire mieux" — le même loop qui fait tourner Duolingo, mais pour la pensée critique au lieu du vocabulaire.
+
+3. Monétisation intelligente
+Le trigger de conversion (score 60-85, 48h avant expiration trial) est du pur behavioral design. Le message personnalisé avec le score exact ("Tu étais à 25 points de la victoire") est très fort.
+
+4. Design premium
+Le design system "Ethereal Professional" positionne l'app dans le segment premium, ce qui justifie le pricing et filtre les users non-sérieux. L'attention aux détails (glassmorphism, Reanimated v4, SSE token-by-token) crée une UX que les concurrents ne peuvent pas copier rapidement.
+
+5. French-first = océan bleu
+Le marché francophone (France, Belgique, Suisse, Canada, Afrique du Nord) est massivement sous-servi en apps de débat/rhétorique. Position de first-mover évidente.
+
+Faiblesses & risques
+1. Pas de dimension sociale
+L'app est actuellement un exercice solitaire. Pas de partage de débat, pas de spectateurs, pas de défis entre amis. Le classement existe mais sans interaction. C'est le risque #1 sur la rétention.
+
+2. Dépendance Claude API
+100% de la valeur core dépend d'un seul fournisseur. Si Anthropic change ses prix, ses rate limits, ou la qualité du modèle — l'app est impactée directement.
+
+3. Contenu statique
+8 sujets fixes. Aucun mécanisme de renouvellement. Après 2-3 semaines, un user actif aura épuisé les sujets. Le churn va exploser à J+14 si le catalogue ne grandit pas.
+
+4. Pas de onboarding progressif
+L'écran d'onboarding demande topic + difficulté puis lance le débat. Il n'y a pas de tutoriel, pas de premier débat guidé, pas d'explication du scoring. Les users novices vont se sentir perdus.
+
+5. Tier Eloquence flou
+€9.99/mois pour "coaching IA + 10 tours" — la proposition de valeur n'est pas assez claire. Pourquoi payer 2x le prix du Pro ? Le coaching post-débat doit être démontré avant l'achat.
+
+Potentiel marché
+Segment	Taille estimée	Willingness to pay	Priorité
+Étudiants prépa/grandes écoles (FR)	~200K	Moyenne (€4.99)	Haute
+Débatteurs compétitifs (Model UN, clubs)	~500K mondial	Haute (€9.99)	Haute
+Curieux rhétorique/pensée critique	~2M francophone	Faible-Moyenne	Moyenne
+Enseignants (outil pédagogique)	~100K	Haute (licence école)	Future
+Apprenants FLE (français langue étrangère)	~5M	Moyenne	Future
+TAM réaliste Year 1 : 50-100K downloads, 5-10K paying users, €200-400K ARR.
+
+Améliorations suggérées
+Court terme (0-3 mois)
+1. Débats du jour dynamiques
+Un sujet nouveau chaque jour, lié à l'actualité. Générés automatiquement via Claude à partir d'un flux RSS. Crée un motif de retour quotidien (comme Wordle).
+
+2. Partage de score card
+Après un débat, générer une image stylée (score, sujet, verdict) partageable sur Instagram/WhatsApp/Twitter. C'est du growth organique gratuit. Les gens adorent montrer leurs scores.
+
+3. Mode "Replay" spectateur
+Permettre de lire les débats des autres (anonymisés). Double bénéfice : contenu passif pour les users non-engagés + apprentissage par l'exemple.
+
+4. Onboarding guidé
+Premier débat avec des tooltips qui expliquent le scoring, les quick actions, le timer. "Ton premier débat est un entraînement — pas de score enregistré."
+
+5. Catalogue de 30+ sujets
+Organiser par catégorie (Technologie, Société, Éthique, Politique, Économie). Minimum 30 sujets au lancement, +5/semaine ensuite.
+
+Moyen terme (3-6 mois)
+6. Défis 1v1 asynchrones
+Deux users débattent le même sujet, chacun contre l'IA. Celui qui a le meilleur score gagne. Pas besoin de temps réel — l'IA est l'adversaire pour chacun, le classement est comparatif.
+
+7. "Contra for Schools"
+Licence institutionnelle (€50-200/mois par classe). Dashboard enseignant avec analytics par élève. Les profs de philo et de français sont le canal d'acquisition parfait.
+
+8. Streaks et progression
+
+Streak quotidien (X jours consécutifs)
+Niveaux de débatteur (Novice → Apprenti → Rhéteur → Grand Rhéteur → Maître)
+Badges de compétence (Premier argument logique parfait, etc.)
+9. Sujets personnalisés
+L'user peut taper son propre sujet. L'IA évalue s'il est débattable, prend position, et le débat commence. Killer feature pour l'engagement.
+
+Long terme (6-12 mois)
+10. Tournois live
+Brackets de 8-16 joueurs. Même sujet, même difficulté. Éliminatoires sur 1 semaine. Prix : badge exclusif + mois gratuit. Crée un événement communautaire régulier.
+
+11. Mode vocal
+Débat oral via speech-to-text + text-to-speech. Beaucoup plus immersif. Différenciateur massif. Techniquement faisable avec Whisper + Claude + ElevenLabs.
+
+12. API/SDK pour éditeurs
+Permettre à d'autres apps (apps éducatives, médias) d'intégrer un module de débat Contra. Nouveau canal de revenus B2B.
+
+Métriques clés à suivre
+Métrique	Cible J+90	Pourquoi
+D1 rétention	>40%	Qualité du premier débat
+D7 rétention	>20%	Diversité des sujets
+D30 rétention	>10%	Loop compétitive active
+Trial → Paid conversion	>12%	Efficacité du paywall timing
+Débats/user/semaine	>2.5	Engagement core
+Score moyen	55-70	Difficulté bien calibrée
+NPS	>50	Satisfaction produit
+Verdict
+Contra a un vrai potentiel. Le concept est solide, le design est premium, la monétisation est réfléchie. Les deux chantiers critiques sont :
+
+Le contenu — sans renouvellement de sujets, l'app meurt à J+14
+Le social — sans partage et compétition entre humains, c'est un exercice solitaire qui lasse
+Si ces deux axes sont adressés dans les 3 premiers mois, l'app peut devenir le Duolingo de la pensée critique.
