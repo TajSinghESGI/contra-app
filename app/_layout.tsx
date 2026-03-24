@@ -44,7 +44,7 @@ export default function RootLayout() {
     'SFProRounded-Bold':     require('../assets/fonts/SF-Pro-Rounded-Bold.otf'),
   });
 
-  const { isLogged, isHydrated, hydrate } = useAuthStore();
+  const { isLogged, isHydrated, hydrate, user } = useAuthStore();
   const hydrateStreak = useStreakStore((s) => s.hydrate);
   const hydrateProgression = useProgressionStore((s) => s.hydrate);
   const hydrateBadges = useBadgeStore((s) => s.hydrate);
@@ -79,7 +79,7 @@ export default function RootLayout() {
     hydrateStreak();
     hydrateProgression();
     hydrateBadges();
-    initializePurchases();
+    initializePurchases(user?.id ?? undefined);
   }, []);
 
   const ready = fontsLoaded && isHydrated;

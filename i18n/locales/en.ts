@@ -18,6 +18,7 @@ export default {
     participants_other: '{{count}} participants',
     for: 'For',
     against: 'Against',
+    comingSoon: 'Coming soon',
   },
   tabs: {
     feed: 'Feed',

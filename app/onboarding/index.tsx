@@ -1,3 +1,4 @@
+import { Toast } from '@/components/ui/Toast';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -108,31 +109,7 @@ export default function OnboardingScreen() {
   useEffect(() => { fetchFriends(); }, []);
 
   const handleChallengeFriend = () => {
-    const topic = resolvedTopicText || resolvedTopicId;
-    const label = customTopic.trim() ? t('onboarding.customTopicValue') : selectedTopicLabel;
-    if (!topic) return;
-
-    present(
-      <BottomSheet
-        snapPoints={['60%']}
-        enableBackdrop
-        dismissOnBackdropPress
-        dismissOnSwipeDown
-        backgroundColor={colors['surface-container-lowest']}
-      >
-        <FriendPickerSheet
-          friends={friends}
-          onSelect={(friend) => {
-            sendChallengeAction(friend, topic, label, selectedDifficulty);
-            dismiss();
-            // Get the newly created challenge id (last one added)
-            const challenges = useFriendStore.getState().challenges;
-            const newChallenge = challenges[challenges.length - 1];
-            router.push(`/challenge/debate/${newChallenge.id}` as any);
-          }}
-        />
-      </BottomSheet>
-    );
+    Toast.show(t('common.comingSoon'), { type: 'info', duration: 2000 });
   };
 
   const resolvedTopicText = customTopic.trim() || '';

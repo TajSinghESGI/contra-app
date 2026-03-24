@@ -3,6 +3,7 @@ import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { apiLogin } from '@/services/api';
+import { loginUser } from '@/services/revenuecat';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -92,7 +93,8 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const res = await apiLogin(email.trim(), password);
-      await login(res.token);
+      await login(res.token, res.user);
+      await loginUser(res.user.id);
       // Sync language preference
       const { useTopicStore } = require('@/store/topicStore');
       useTopicStore.getState().setLang(res.user.language ?? 'fr');

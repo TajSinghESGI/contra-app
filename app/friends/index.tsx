@@ -382,37 +382,17 @@ export default function FriendsScreen() {
   const sendChallengeAction = useFriendStore((s) => s.sendChallenge);
 
   const handleChallenge = useCallback(
-    (friend: Friend) => {
-      present(
-        <BottomSheet
-          snapPoints={['85%']}
-          enableBackdrop
-          dismissOnBackdropPress
-          dismissOnSwipeDown
-          backgroundColor={colors['surface-container-lowest']}
-        >
-          <ChallengeSheet
-            friend={friend}
-            onSend={(topic, label, diff) => {
-              sendChallengeAction(friend, topic, label, diff);
-              dismiss();
-              Toast.show(t('friends.sent'), { type: 'success', duration: 3000 });
-              const challenges = useFriendStore.getState().challenges;
-              const newChallenge = challenges[challenges.length - 1];
-              router.push(`/challenge/debate/${newChallenge.id}` as any);
-            }}
-          />
-        </BottomSheet>
-      );
+    (_friend: Friend) => {
+      Toast.show(t('common.comingSoon'), { type: 'info', duration: 2000 });
     },
-    [present, dismiss, sendChallengeAction, colors],
+    [t],
   );
 
   const handleChallengePress = useCallback(
-    (challenge: Challenge) => {
-      router.push(`/challenge/${challenge.id}` as any);
+    (_challenge: Challenge) => {
+      Toast.show(t('common.comingSoon'), { type: 'info', duration: 2000 });
     },
-    [router],
+    [t],
   );
 
   const isSearching = searchText.trim().length > 0;

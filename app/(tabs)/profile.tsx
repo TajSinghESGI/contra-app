@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getProfile, updateProfile, reportBug } from '@/services/api';
+import { logoutUser } from '@/services/revenuecat';
 import { queryClient } from '@/services/queryClient';
 import type { AuthUser } from '@/services/api';
 import {
@@ -408,7 +409,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.signOutButton}
           activeOpacity={0.7}
-          onPress={async () => { await logout(); router.replace('/auth/login'); }}
+          onPress={async () => { await logout(); logoutUser(); router.replace('/auth/login'); }}
         >
           <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>

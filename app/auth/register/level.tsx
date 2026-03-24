@@ -4,6 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { apiRegister, updateProfile } from '@/services/api';
+import { loginUser } from '@/services/revenuecat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
@@ -42,7 +43,8 @@ export default function RegisterLevel() {
   const handleFinish = async () => {
     try {
       const res = await apiRegister(email, password, fullName);
-      await login(res.token);
+      await login(res.token, res.user);
+      await loginUser(res.user.id);
       // Save preferences (topics + difficulty)
       await updateProfile({
         default_difficulty: selectedDifficulty,
