@@ -5,6 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getCurrentOffering, type PurchasesPackage } from '@/services/revenuecat';
+import { track } from '@/services/analytics';
+import { AnalyticsEvents } from '@/services/analyticsEvents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -55,6 +57,7 @@ export default function PaywallScreen() {
 
   // Fetch real offerings from RevenueCat
   useEffect(() => {
+    track(AnalyticsEvents.PAYWALL_VIEWED);
     getCurrentOffering().then((offering) => {
       if (!offering) return;
       setPackages({
@@ -74,6 +77,7 @@ export default function PaywallScreen() {
   const handleSubscribe = async () => {
     const pkg = selectedPlan === 'pro_annual' ? packages.yearly : packages.monthly;
     if (!pkg) return;
+    track(AnalyticsEvents.PURCHASE_STARTED, { plan: selectedPlan });
     setIsLoading(true);
     try {
       const success = await subscribe(pkg);

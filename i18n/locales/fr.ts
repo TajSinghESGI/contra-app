@@ -383,6 +383,13 @@ export default {
     recentDebates: 'DÉBATS RÉCENTS',
     sendChallenge: 'Lancer un défi',
   },
+  notifications: {
+    permissionTitle: 'Activer les notifications',
+    permissionBody: 'Recois des rappels de streak et les resultats de tes debats',
+    streakReminder: 'Ta streak de {{days}} jours est en danger !',
+    newTopicOfDay: 'Nouveau sujet du jour disponible',
+    debateResult: 'Ton score : {{score}}/100',
+  },
   difficulty: {
     easy: 'Accommodante',
     medium: 'Rigoureuse',

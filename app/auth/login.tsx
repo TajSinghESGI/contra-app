@@ -4,6 +4,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { apiLogin } from '@/services/api';
 import { loginUser } from '@/services/revenuecat';
+import { track, identify } from '@/services/analytics';
+import { AnalyticsEvents } from '@/services/analyticsEvents';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -95,6 +97,8 @@ export default function LoginScreen() {
       const res = await apiLogin(email.trim(), password);
       await login(res.token, res.user);
       await loginUser(res.user.id);
+      identify(res.user.id, { email: res.user.email, name: res.user.full_name });
+      track(AnalyticsEvents.LOGIN);
       // Sync language preference
       const { useTopicStore } = require('@/store/topicStore');
       useTopicStore.getState().setLang(res.user.language ?? 'fr');

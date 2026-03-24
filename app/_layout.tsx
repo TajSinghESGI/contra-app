@@ -5,9 +5,11 @@ import { useStreakStore } from '@/store/streakStore';
 import { useProgressionStore } from '@/store/progressionStore';
 import { useBadgeStore } from '@/store/badgeStore';
 import { initializePurchases } from '@/services/revenuecat';
+import { initAnalytics } from '@/services/analytics';
 import { BottomSheetStackProvider } from '@/components/ui/BottomSheetStack';
 import { useTheme } from '@/hooks/useTheme';
 import { DebateTutorial, hasTutorialBeenSeen } from '@/components/debate/DebateTutorial';
+import { useNotifications } from '@/hooks/useNotifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/services/queryClient';
 import { useFonts } from 'expo-font';
@@ -53,6 +55,9 @@ export default function RootLayout() {
   const segments = useSegments();
   const [showTutorial, setShowTutorial] = useState(() => !hasTutorialBeenSeen());
 
+  // Push notifications — registration only fires when isLogged is true (inside the hook)
+  useNotifications();
+
   // Theme transition overlay
   const overlayOpacity = useSharedValue(0);
   const isFirstRender = React.useRef(true);
@@ -80,6 +85,7 @@ export default function RootLayout() {
     hydrateProgression();
     hydrateBadges();
     initializePurchases(user?.id ?? undefined);
+    initAnalytics();
   }, []);
 
   const ready = fontsLoaded && isHydrated;

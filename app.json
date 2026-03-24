@@ -2,13 +2,16 @@
   "expo": {
     "name": "contra",
     "slug": "contra",
+    "owner": "tajsingh15",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "contra",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.tajsingh.contraapp"
     },
@@ -19,7 +22,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.tajsingh.contraapp"
     },
@@ -43,11 +45,18 @@
         }
       ],
       "expo-localization",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b342b31e-7e0f-4758-9074-32a0b65078f0"
+      }
     }
   }
 }

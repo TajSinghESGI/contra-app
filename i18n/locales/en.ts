@@ -383,6 +383,13 @@ export default {
     recentDebates: 'RECENT DEBATES',
     sendChallenge: 'Send a challenge',
   },
+  notifications: {
+    permissionTitle: 'Enable notifications',
+    permissionBody: 'Get streak reminders and debate results',
+    streakReminder: 'Your {{days}}-day streak is at risk!',
+    newTopicOfDay: 'New topic of the day available',
+    debateResult: 'Your score: {{score}}/100',
+  },
   difficulty: {
     easy: 'Lenient',
     medium: 'Rigorous',

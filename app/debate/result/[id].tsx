@@ -23,6 +23,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { track } from '@/services/analytics';
+import { AnalyticsEvents } from '@/services/analyticsEvents';
 import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
@@ -88,6 +90,10 @@ function ResultScreenInner() {
       try {
         const result = await getDebateScore(id);
         setScore(result);
+        track(AnalyticsEvents.DEBATE_SCORE_VIEWED, {
+          debateId: id,
+          score: result.total,
+        });
 
         // Sync all stores from backend (streaks, progression, badges are computed server-side)
         await Promise.all([syncStreak(), syncProgression(), syncBadges()]);

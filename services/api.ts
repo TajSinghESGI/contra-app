@@ -436,6 +436,17 @@ export async function reportBug(description: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
+
+export async function savePushToken(token: string): Promise<void> {
+  await apiFetch('/api/auth/push-token/', {
+    method: 'POST',
+    body: { token },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Forgot password
 // ---------------------------------------------------------------------------
 

@@ -5,7 +5,9 @@ import { useRegisterStore } from '@/store/registerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { track } from '@/services/analytics';
+import { AnalyticsEvents } from '@/services/analyticsEvents';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Pressable,
@@ -37,6 +39,10 @@ export default function RegisterStep1() {
 
   const { fullName, email, password, setFullName, setEmail, setPassword } = useRegisterStore();
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    track(AnalyticsEvents.SIGNUP_STARTED);
+  }, []);
 
   const nameBorder    = useSharedValue(0);
   const emailBorder   = useSharedValue(0);
