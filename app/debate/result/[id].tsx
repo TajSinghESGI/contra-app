@@ -25,7 +25,7 @@ import Animated, {
 import { useTranslation } from 'react-i18next';
 import { track } from '@/services/analytics';
 import { AnalyticsEvents } from '@/services/analyticsEvents';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
 import { useStreakStore } from '@/store/streakStore';
@@ -48,8 +48,8 @@ interface MetricCardProps {
 // ─── Metric card ──────────────────────────────────────────────────────────────
 
 function MetricCard({ label, value, percentage, description, delay }: MetricCardProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <View style={styles.metricCard}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -63,8 +63,8 @@ function MetricCard({ label, value, percentage, description, delay }: MetricCard
 // ─── Inner screen (must be rendered inside SiriProvider) ─────────────────────
 
 function ResultScreenInner() {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id, topic: topicParam } = useLocalSearchParams<{ id: string; topic?: string }>();
@@ -86,6 +86,7 @@ function ResultScreenInner() {
   useEffect(() => {
     if (!id) return;
 
+    let attempts = 0;
     const fetchAndProcess = async () => {
       try {
         const result = await getDebateScore(id);
@@ -98,8 +99,11 @@ function ResultScreenInner() {
         // Sync all stores from backend (streaks, progression, badges are computed server-side)
         await Promise.all([syncStreak(), syncProgression(), syncBadges()]);
       } catch {
-        // Score pas encore prêt, retry
-        setTimeout(fetchAndProcess, 3000);
+        // Score pas encore prêt, retry (max 10 tentatives)
+        if (attempts < 10) {
+          attempts++;
+          setTimeout(fetchAndProcess, 3000);
+        }
       }
     };
 
@@ -244,7 +248,7 @@ export default function ResultScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -290,11 +294,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   verdictText: {
     fontFamily: fonts.light,
-    fontSize: 40,
+    fontSize: fs(40),
     letterSpacing: -1.5,
     color: colors['on-surface'],
     marginTop: spacing[2],
-    lineHeight: 46,
+    lineHeight: fs(46),
   },
   scoreRow: {
     flexDirection: 'row',
@@ -303,14 +307,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   scoreNumber: {
     fontFamily: fonts.thin,
-    fontSize: 72,
+    fontSize: fs(72),
     color: colors['on-surface'],
-    lineHeight: 80,
+    lineHeight: fs(80),
     letterSpacing: -2,
   },
   scoreOutOf: {
     fontFamily: fonts.light,
-    fontSize: 24,
+    fontSize: fs(24),
     color: colors['outline-variant'],
     marginBottom: 10,
     marginLeft: spacing[1],
@@ -338,14 +342,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   metricValue: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     color: colors['on-surface'],
     letterSpacing: -0.5,
     marginBottom: spacing[2],
   },
   metricDescription: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
 
@@ -363,8 +367,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   analysisBody: {
     fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: fs(15),
+    lineHeight: fs(24),
     color: colors['on-surface'],
   },
   analysisFooter: {
@@ -375,7 +379,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   analysisLink: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.primary,
   },
   hintRow: {
@@ -393,8 +397,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   hintText: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: fs(13),
+    lineHeight: fs(20),
     color: colors['on-surface-variant'],
   },
 

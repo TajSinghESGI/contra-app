@@ -13,7 +13,7 @@ import Icon from '@/components/ui/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { fonts, radius, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { AIMessage } from '@/components/debate/AIMessage';
 import { UserMessage } from '@/components/debate/UserMessage';
@@ -27,8 +27,8 @@ import type { ScoreResult } from '@/store/debateStore';
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function DebateScreen() {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -51,17 +51,8 @@ export default function DebateScreen() {
   const displayTopic = topic || topicParam;
 
   const [inputText, setInputText] = useState('');
-  const [timeLeft, setTimeLeft] = useState(300);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [finalScore, setFinalScore] = useState<ScoreResult | null>(null);
-
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const interval = setInterval(() => {
-      setTimeLeft((t) => Math.max(0, t - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft]);
 
   // Fetch final score when debate is over
   useEffect(() => {
@@ -80,12 +71,6 @@ export default function DebateScreen() {
     };
     fetchScore();
   }, [isDebateOver, id]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
@@ -112,19 +97,19 @@ export default function DebateScreen() {
       {/* ── Fixed glassmorphism header ── */}
       {isDark ? (
         <View style={[styles.header, styles.headerSolid, { paddingTop: insets.top }]}>
+          <View style={{ width: 22 }} />
+          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerClose} hitSlop={8}>
             <Icon name="circle-x" size={22} color={colors['on-surface']} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
-          <Text style={styles.headerTimer}>{formatTime(timeLeft)}</Text>
         </View>
       ) : (
         <BlurView intensity={80} tint="light" style={[styles.header, { paddingTop: insets.top }]}>
+          <View style={{ width: 22 }} />
+          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerClose} hitSlop={8}>
             <Icon name="circle-x" size={22} color={colors['on-surface']} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
-          <Text style={styles.headerTimer}>{formatTime(timeLeft)}</Text>
         </BlurView>
       )}
 
@@ -139,7 +124,7 @@ export default function DebateScreen() {
             <Text style={styles.turnCounter}>{t('debate.turnShort', { current: Math.min(currentTurn, maxTurns), max: maxTurns })}</Text>
           </View>
         </View>
-        <LiveScoreBar score={score?.total ?? 50} />
+        <LiveScoreBar score={score?.total ?? 0} />
       </View>
 
       {/* ── Chat messages ── */}
@@ -190,7 +175,7 @@ export default function DebateScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -222,13 +207,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   headerTitle: {
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: fs(16),
     letterSpacing: -0.3,
     color: colors['on-surface'],
   },
   headerTimer: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     fontVariant: ['tabular-nums'],
     color: colors['on-surface-variant'],
     width: 40,
@@ -263,11 +248,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   topicText: {
     fontFamily: fonts.light,
-    fontSize: 18,
+    fontSize: fs(18),
     letterSpacing: -0.3,
     color: colors['on-surface'],
     marginTop: 4,
-    lineHeight: 24,
+    lineHeight: fs(24),
   },
   turnBadge: {
     backgroundColor: colors['surface-container-high'],
@@ -278,7 +263,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   turnCounter: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: fs(11),
     letterSpacing: 1,
     color: colors['on-surface-variant'],
   },

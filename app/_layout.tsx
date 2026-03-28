@@ -8,7 +8,7 @@ import { initializePurchases } from '@/services/revenuecat';
 import { initAnalytics } from '@/services/analytics';
 import { BottomSheetStackProvider } from '@/components/ui/BottomSheetStack';
 import { useTheme } from '@/hooks/useTheme';
-import { DebateTutorial, hasTutorialBeenSeen } from '@/components/debate/DebateTutorial';
+import { hasCompletedOnboarding } from '@/store/onboardingStore';
 import { useNotifications } from '@/hooks/useNotifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/services/queryClient';
@@ -16,8 +16,10 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
+import * as Linking from 'expo-linking';
+import { registerReferral } from '@/services/api';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -53,7 +55,6 @@ export default function RootLayout() {
   const { colors: themeColors, isDark } = useTheme();
   const router = useRouter();
   const segments = useSegments();
-  const [showTutorial, setShowTutorial] = useState(() => !hasTutorialBeenSeen());
 
   // Push notifications — registration only fires when isLogged is true (inside the hook)
   useNotifications();
@@ -88,16 +89,49 @@ export default function RootLayout() {
     initAnalytics();
   }, []);
 
+  // ─── Deeplink: capture invite referrer ────────────────────────────────────
+  const referrerIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Check initial URL (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        const match = url.match(/\/invite\/([a-zA-Z0-9-]+)/);
+        if (match) referrerIdRef.current = match[1];
+      }
+    });
+
+    // Listen for URLs while app is open (warm start)
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      const match = url.match(/\/invite\/([a-zA-Z0-9-]+)/);
+      if (match) referrerIdRef.current = match[1];
+    });
+
+    return () => sub.remove();
+  }, []);
+
+  // Send referral to backend once user is logged in
+  useEffect(() => {
+    if (isLogged && referrerIdRef.current) {
+      const rid = referrerIdRef.current;
+      referrerIdRef.current = null;
+      registerReferral(rid).catch(() => {});
+    }
+  }, [isLogged]);
+
   const ready = fontsLoaded && isHydrated;
 
   useEffect(() => {
     if (!ready) return;
 
     const inAuthGroup = segments[0] === 'auth';
+    const inFirstLaunch = segments[0] === 'first-launch';
     if (!isLogged && !inAuthGroup) {
       router.replace('/auth/login');
     } else if (isLogged && inAuthGroup) {
-      router.replace('/(tabs)');
+      router.replace(hasCompletedOnboarding() ? '/(tabs)' : '/first-launch');
+    } else if (isLogged && !inFirstLaunch && !hasCompletedOnboarding()) {
+      router.replace('/first-launch');
     }
 
     SplashScreen.hideAsync();
@@ -139,6 +173,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="rankings/index" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding/index" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="first-launch" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="auth" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="debate/new" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="debate/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -163,9 +198,6 @@ export default function RootLayout() {
               overlayStyle,
             ]}
           />
-          {isLogged && showTutorial && (
-            <DebateTutorial onComplete={() => setShowTutorial(false)} />
-          )}
         </ToastProviderWithViewport>
         </BottomSheetStackProvider>
       </SafeAreaProvider>

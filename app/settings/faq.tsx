@@ -5,15 +5,15 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
 import { Accordion } from '@/components/ui/Accordion';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function FAQScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const FAQ = [
     { q: t('settings.faq.q1'), a: t('settings.faq.a1') },
@@ -58,7 +58,7 @@ export default function FAQScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -69,17 +69,17 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors['surface-container-lowest'],
     alignItems: 'center', justifyContent: 'center', ...shadows.ambient,
   },
-  headerTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors['on-surface'], letterSpacing: -0.2 },
+  headerTitle: { fontFamily: fonts.semibold, fontSize: fs(16), color: colors['on-surface'], letterSpacing: -0.2 },
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   sectionLabel: { ...typography['label-sm'], color: colors.outline, marginBottom: spacing[3] },
   card: {
     backgroundColor: colors['surface-container-lowest'],
     borderRadius: radius['2xl'], ...shadows.ambient, overflow: 'hidden',
   },
-  question: { flex: 1, fontFamily: fonts.medium, fontSize: 15, color: colors['on-surface'], lineHeight: 22 },
+  question: { flex: 1, fontFamily: fonts.medium, fontSize: fs(15), color: colors['on-surface'], lineHeight: fs(22) },
   answer: {
-    fontFamily: fonts.regular, fontSize: 14, color: colors['on-surface-variant'],
-    lineHeight: 22, marginTop: spacing[3],
+    fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'],
+    lineHeight: fs(22), marginTop: spacing[3],
   },
 });
 

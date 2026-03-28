@@ -1,5 +1,5 @@
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { forgotPassword } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,9 +20,9 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSeq
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -154,7 +154,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -189,7 +189,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     ...typography['headline-md'],
     color: colors['on-surface'],
     marginBottom: spacing[3],
-    lineHeight: 36,
+    lineHeight: fs(36),
   },
   subtitle: {
     ...typography['body-sm'],
@@ -198,7 +198,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
     marginBottom: spacing[2],
   },
@@ -211,12 +211,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingVertical: 14,
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
   errorText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.error,
     marginTop: spacing[3],
   },
@@ -238,7 +238,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },
@@ -248,7 +248,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   backToLoginText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface-variant'],
   },
 

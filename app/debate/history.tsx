@@ -11,7 +11,7 @@ import Animated, {
   Easing,
   FadeInDown,
 } from 'react-native-reanimated';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import Icon from '@/components/ui/Icon';
 import { useTheme } from '@/hooks/useTheme';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
@@ -29,8 +29,8 @@ function DebateCard({
   delay: number;
   onPress: () => void;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const scoreColor =
     debate.score >= 70
@@ -76,8 +76,8 @@ function DebateCard({
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function DebateHistoryScreen() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -126,7 +126,7 @@ export default function DebateHistoryScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -158,9 +158,9 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   debateTopic: {
     flex: 1,
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
   debateScoreCircle: {
     width: 44,
@@ -172,7 +172,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   debateScoreValue: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: fs(14),
   },
   debateCardBottom: {
     flexDirection: 'row',
@@ -182,7 +182,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   debateDate: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
   },
   debateDifficulty: {
@@ -192,7 +192,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
 
   emptyText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface-variant'],
     textAlign: 'center',
     paddingVertical: spacing[8],

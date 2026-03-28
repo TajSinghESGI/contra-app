@@ -17,7 +17,7 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useProgressionStore } from '@/store/progressionStore';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
@@ -121,8 +121,8 @@ function CriterionRow({
   percentage: number;
   delay: number;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   return (
     <Animated.View
@@ -155,8 +155,8 @@ function DebateCard({
   delay: number;
   onPress: () => void;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const scoreColor = getScoreColor(debate.score);
 
@@ -194,9 +194,9 @@ function DebateCard({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { totalDebates, totalScore } = useProgressionStore();
@@ -299,7 +299,7 @@ export default function AnalyticsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   // Hero card
   heroCard: {
     backgroundColor: colors['surface-container-lowest'],
@@ -327,13 +327,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   heroMetaValue: {
     fontFamily: fonts.bold,
-    fontSize: 28,
+    fontSize: fs(28),
     letterSpacing: -0.5,
     color: colors['on-surface'],
   },
   heroMetaLabel: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
   heroMetaDivider: {
@@ -359,7 +359,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   seeAllText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.primary,
   },
 
@@ -381,12 +381,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   criterionLabel: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
   criterionPercent: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
 
@@ -409,9 +409,9 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   debateTopic: {
     flex: 1,
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
   debateScoreCircle: {
     width: 44,
@@ -423,11 +423,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   debateScoreValue: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: fs(14),
   },
   debateDate: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
     marginTop: spacing[2],
   },
@@ -435,7 +435,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   // Empty state
   emptyText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface-variant'],
     textAlign: 'center',
     paddingVertical: spacing[8],

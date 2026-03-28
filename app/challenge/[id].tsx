@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
 import { DifficultyBadge } from '@/components/debate/DifficultyBadge';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useFriendStore } from '@/store/friendStore';
 
@@ -37,7 +37,8 @@ function AvatarColumn({
   level: string;
   colors: ColorTokens;
 }) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <View style={styles.avatarColumn}>
       <View style={styles.avatarCircle}>
@@ -54,9 +55,9 @@ function AvatarColumn({
 export default function ChallengeDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const challenges = useFriendStore((s) => s.challenges);
@@ -255,7 +256,7 @@ export default function ChallengeDetailScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -294,7 +295,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   emptyText: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface-variant'],
   },
 
@@ -319,7 +320,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   categoryText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
 
@@ -350,18 +351,18 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: fs(24),
     color: colors['on-surface'],
   },
   avatarName: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
     textAlign: 'center',
   },
   avatarLevel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
     textAlign: 'center',
   },
@@ -370,7 +371,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   vsText: {
     fontFamily: fonts.bold,
-    fontSize: 20,
+    fontSize: fs(20),
     color: colors['outline-variant'],
   },
 
@@ -395,7 +396,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     letterSpacing: 1,
     color: colors['on-primary'],
   },
@@ -408,7 +409,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   secondaryBtnText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     letterSpacing: 0.5,
     color: colors['on-surface-variant'],
   },
@@ -421,7 +422,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   waitingText: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface-variant'],
   },
 
@@ -447,12 +448,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   scoreOwner: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
   scoreLarge: {
     fontFamily: fonts.thin,
-    fontSize: 48,
+    fontSize: fs(48),
     color: colors['on-surface-variant'],
     letterSpacing: -1.5,
   },
@@ -461,13 +462,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   scoreSeparator: {
     fontFamily: fonts.light,
-    fontSize: 32,
+    fontSize: fs(32),
     color: colors['outline-variant'],
     marginTop: spacing[5],
   },
   verdictLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
     marginBottom: spacing[4],
   },
@@ -478,7 +479,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   viewResultText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.primary,
   },
 
@@ -502,12 +503,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   infoKey: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface-variant'],
   },
   infoValue: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
 });

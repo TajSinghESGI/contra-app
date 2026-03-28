@@ -3,7 +3,8 @@ import { AnimatedThemeToggle } from '@/components/ui/AnimatedThemeToggle';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import Icon from '@/components/ui/Icon';
-import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, FONT_SIZE_OPTIONS, fonts, radius, shadows, spacing, type ColorTokens, type FontSizeOption } from '@/constants/tokens';
+import { useFontSizeStore } from '@/store/fontSizeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { useProgressionStore } from '@/store/progressionStore';
@@ -46,14 +47,14 @@ const ABOUT_LINK_KEYS = [
   { labelKey: 'settings.about.website',       url: 'https://contra.app' },
 ];
 
-type SheetType = 'notifications' | 'privacy' | 'language' | 'difficulty' | 'sounds' | 'report-bug' | 'about' | 'badges' | null;
+type SheetType = 'notifications' | 'privacy' | 'language' | 'difficulty' | 'font-size' | 'sounds' | 'report-bug' | 'about' | 'badges' | null;
 
 // ─── Sheet content components (own their state so it works inside BottomSheet) ─
 
 function NotificationsSheetContent() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [notifEnabled, setNotifEnabled] = useState<Record<string, boolean>>({
     new_debates: true, results: true, rankings: true, challenges: true, promotions: false,
   });
@@ -79,9 +80,9 @@ function NotificationsSheetContent() {
 }
 
 function LanguageSheetContent({ initialLang = 'fr' }: { initialLang?: string }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { i18n } = useTranslation();
   const [selectedLang, setSelectedLang] = useState(i18n.language || initialLang);
 
@@ -115,9 +116,9 @@ function LanguageSheetContent({ initialLang = 'fr' }: { initialLang?: string }) 
 }
 
 function DifficultySheetContent() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
   return (
     <View style={styles.sheetContent}>
@@ -141,9 +142,9 @@ function DifficultySheetContent() {
 }
 
 function SoundsSheetContent() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [soundEnabled, setSoundEnabled] = useState<Record<string, boolean>>({
     haptics: true, sfx: true,
   });
@@ -165,10 +166,53 @@ function SoundsSheetContent() {
   );
 }
 
-function ReportBugSheetContent() {
-  const { colors } = useTheme();
+function FontSizeSheetContent() {
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+  const currentSize = useFontSizeStore((s) => s.size);
+  const setSize = useFontSizeStore((s) => s.setSize);
+
+  const LABELS: Record<FontSizeOption, string> = {
+    small: t('profile.fontSize.small'),
+    default: t('profile.fontSize.default'),
+    large: t('profile.fontSize.large'),
+  };
+
+  const PREVIEW_SIZES: Record<FontSizeOption, number> = {
+    small: 16,
+    default: 18,
+    large: 20,
+  };
+
+  return (
+    <View style={styles.sheetContent}>
+      <Text style={styles.sheetTitle}>{t('profile.items.fontSize')}</Text>
+      {FONT_SIZE_OPTIONS.map(({ id }) => {
+        const isActive = currentSize === id;
+        return (
+          <TouchableOpacity
+            key={id}
+            style={[styles.diffRow, isActive && styles.diffRowActive]}
+            onPress={() => setSize(id)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.diffLabel, isActive && styles.diffLabelActive]}>{LABELS[id]}</Text>
+            {isActive && <Icon name="verified-check" size={18} color={colors['on-primary']} />}
+          </TouchableOpacity>
+        );
+      })}
+      <Text style={[styles.sheetBody, { fontSize: PREVIEW_SIZES[currentSize], lineHeight: PREVIEW_SIZES[currentSize] + 10, marginTop: spacing[3] }]}>
+        {t('profile.fontSize.preview')}
+      </Text>
+    </View>
+  );
+}
+
+function ReportBugSheetContent() {
+  const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [bugText, setBugText] = useState('');
   const [sent, setSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -216,8 +260,8 @@ function ReportBugSheetContent() {
 // ─── Setting row ─────────────────────────────────────────────────────────────
 
 function SettingRow({ label, onPress }: { label: string; onPress?: () => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.settingLabel}>{label}</Text>
@@ -233,8 +277,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const logout = useAuthStore((s) => s.logout);
-  const { colors, isDark, setMode } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, setMode, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const currentStreak = useStreakStore((s) => s.currentStreak);
   const { totalDebates, currentLevel } = useProgressionStore();
   const unlockedIds = useBadgeStore((s) => s.unlockedIds);
@@ -272,6 +316,8 @@ export default function ProfileScreen() {
           return <LanguageSheetContent initialLang={profile?.language ?? 'fr'} />;
         case 'difficulty':
           return <DifficultySheetContent />;
+        case 'font-size':
+          return <FontSizeSheetContent />;
         case 'sounds':
           return <SoundsSheetContent />;
         case 'report-bug':
@@ -389,6 +435,7 @@ export default function ProfileScreen() {
                 color={colors['on-surface-variant']}
               />
             </View>
+            <SettingRow label={t('profile.items.fontSize')} onPress={() => openSheet('font-size')} />
             <SettingRow label={t('profile.items.sounds')} onPress={() => openSheet('sounds')} />
           </View>
         </View>
@@ -422,7 +469,7 @@ export default function ProfileScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   rootContainer: {
     flex: 1,
   },
@@ -440,19 +487,19 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: fs(24),
     color: colors['on-surface'],
   },
   userName: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: -0.3,
     color: colors['on-surface'],
     marginTop: spacing[3],
   },
   userSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
     marginTop: spacing[1],
   },
@@ -471,7 +518,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   statsPillText: {
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface'],
   },
 
@@ -500,16 +547,16 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   badgeLabel: {
     fontFamily: fonts.medium,
-    fontSize: 10,
+    fontSize: fs(10),
     color: colors['on-surface'],
     textAlign: 'center',
   },
   badgeDesc: {
     fontFamily: fonts.regular,
-    fontSize: 9,
+    fontSize: fs(9),
     color: colors['on-surface-variant'],
     textAlign: 'center',
-    lineHeight: 13,
+    lineHeight: fs(13),
   },
   badgeLabelLocked: {
     color: colors['outline-variant'],
@@ -536,7 +583,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   settingLabel: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
 
@@ -549,7 +596,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   signOutText: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors.error,
   },
 
@@ -562,15 +609,15 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: -0.3,
     color: colors['on-surface'],
     marginBottom: spacing[2],
   },
   sheetBody: {
     fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: fs(15),
+    lineHeight: fs(24),
     color: colors['on-surface-variant'],
   },
 
@@ -584,12 +631,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   notifText: { flex: 1, marginRight: spacing[3] },
   notifLabel: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
   notifSub: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
     marginTop: 2,
   },
@@ -606,7 +653,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   langLabel: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
 
@@ -625,7 +672,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   diffLabel: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
   diffLabelActive: {
@@ -637,7 +684,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors['surface-container-low'],
     borderRadius: radius.xl,
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[4],
@@ -651,7 +698,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   bugSubmitText: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-primary'],
   },
 
@@ -672,13 +719,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   aboutLogo: { width: 36, height: 36 },
   aboutWordmark: {
     fontFamily: fonts.bold,
-    fontSize: 28,
+    fontSize: fs(28),
     letterSpacing: -0.5,
     color: colors['on-surface'],
   },
   aboutVersion: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
 

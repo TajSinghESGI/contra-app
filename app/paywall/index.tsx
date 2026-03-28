@@ -1,5 +1,5 @@
 import Icon, { type IconName } from '@/components/ui/Icon';
-import { fonts, PLANS, radius, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, PLANS, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -47,9 +47,9 @@ const dark = {
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { subscribe, restore } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('pro_annual');
   const [packages, setPackages] = useState<{ monthly?: PurchasesPackage; yearly?: PurchasesPackage }>({});
@@ -237,7 +237,7 @@ export default function PaywallScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 
-const createStyles = (_colors: ColorTokens) =>
+const createStyles = (_colors: ColorTokens, typography: any, fs: (n: number) => number) =>
   StyleSheet.create({
     root: {
       flex: 1,
@@ -281,17 +281,17 @@ const createStyles = (_colors: ColorTokens) =>
     },
     headline: {
       fontFamily: fonts.light,
-      fontSize: 42,
+      fontSize: fs(42),
       letterSpacing: -1.5,
-      lineHeight: 48,
+      lineHeight: fs(48),
       color: dark.text,
       marginBottom: spacing[2],
     },
     subheadline: {
       fontFamily: fonts.regular,
-      fontSize: 16,
+      fontSize: fs(16),
       color: dark.textDim,
-      lineHeight: 24,
+      lineHeight: fs(24),
     },
 
     // Features
@@ -314,7 +314,7 @@ const createStyles = (_colors: ColorTokens) =>
     },
     featureText: {
       fontFamily: fonts.medium,
-      fontSize: 15,
+      fontSize: fs(15),
       color: dark.text,
       flex: 1,
     },
@@ -350,13 +350,13 @@ const createStyles = (_colors: ColorTokens) =>
     },
     savingsBadgeText: {
       fontFamily: fonts.bold,
-      fontSize: 11,
+      fontSize: fs(11),
       color: '#fff',
       letterSpacing: 0.5,
     },
     planLabel: {
       fontFamily: fonts.semibold,
-      fontSize: 12,
+      fontSize: fs(12),
       color: dark.textDim,
       letterSpacing: 1,
       textTransform: 'uppercase',
@@ -366,7 +366,7 @@ const createStyles = (_colors: ColorTokens) =>
     },
     planPrice: {
       fontFamily: fonts.bold,
-      fontSize: 24,
+      fontSize: fs(24),
       color: dark.textDim,
       letterSpacing: -0.5,
     },
@@ -375,7 +375,7 @@ const createStyles = (_colors: ColorTokens) =>
     },
     planPeriod: {
       fontFamily: fonts.regular,
-      fontSize: 13,
+      fontSize: fs(13),
       color: dark.textDim,
     },
     planPeriodActive: {
@@ -383,7 +383,7 @@ const createStyles = (_colors: ColorTokens) =>
     },
     planPerMonth: {
       fontFamily: fonts.regular,
-      fontSize: 11,
+      fontSize: fs(11),
       color: dark.textDim,
       marginTop: 4,
       opacity: 0.7,
@@ -399,7 +399,7 @@ const createStyles = (_colors: ColorTokens) =>
     },
     trialNudgeText: {
       fontFamily: fonts.regular,
-      fontSize: 13,
+      fontSize: fs(13),
       color: dark.textDim,
       flex: 1,
     },
@@ -421,19 +421,19 @@ const createStyles = (_colors: ColorTokens) =>
     },
     ctaText: {
       fontFamily: fonts.semibold,
-      fontSize: 16,
+      fontSize: fs(16),
       color: dark.bg,
       letterSpacing: 0.3,
     },
     legalText: {
       fontFamily: fonts.regular,
-      fontSize: 11,
+      fontSize: fs(11),
       color: dark.textFaint,
       textAlign: 'center',
     },
     restoreText: {
       fontFamily: fonts.semibold,
-      fontSize: 13,
+      fontSize: fs(13),
       color: dark.textDim,
       textDecorationLine: 'underline',
     },

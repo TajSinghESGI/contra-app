@@ -11,7 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LiveDot } from '@/components/shared/LiveDot';
 
@@ -36,9 +36,9 @@ const SAMPLE_ARGUMENTS = [
 // ─── Argument row ───────────────────────────────────────────────────────────────
 
 function ArgumentRow({ text, side }: { text: string; side: string }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const isPour = side === 'pour';
   return (
     <View style={styles.argRow}>
@@ -57,9 +57,9 @@ function ArgumentRow({ text, side }: { text: string; side: string }) {
 export default function ArenaDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const DIFFICULTY_CONFIG = useMemo(() => getDifficultyConfig(colors, t), [colors, t]);
   const {
     id,
@@ -181,7 +181,7 @@ export default function ArenaDetailScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -237,7 +237,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   liveText: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: fs(11),
     color: '#1e7e34',
     letterSpacing: 0.5,
   },
@@ -248,21 +248,21 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   diffText: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: fs(11),
     letterSpacing: 0.5,
   },
   topicTitle: {
     fontFamily: fonts.light,
-    fontSize: 26,
+    fontSize: fs(26),
     letterSpacing: -0.5,
     color: colors['on-surface'],
-    lineHeight: 34,
+    lineHeight: fs(34),
     marginBottom: spacing[3],
   },
   topicDescription: {
     fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: fs(15),
+    lineHeight: fs(24),
     color: colors['on-surface-variant'],
     marginBottom: spacing[4],
   },
@@ -273,7 +273,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   participantsText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
 
@@ -305,14 +305,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   argSidePour:   { backgroundColor: '#e3f9e5' },
   argSideContre: { backgroundColor: '#ffe0dd' },
-  argSideText: { fontFamily: fonts.semibold, fontSize: 10, letterSpacing: 0.3 },
+  argSideText: { fontFamily: fonts.semibold, fontSize: fs(10), letterSpacing: 0.3 },
   argSideTextPour:   { color: '#1e7e34' },
   argSideTextContre: { color: colors.error },
   argText: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: fs(14),
+    lineHeight: fs(22),
     color: colors['on-surface'],
   },
 
@@ -331,13 +331,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   statValue: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     color: colors['on-surface'],
     letterSpacing: -0.5,
   },
   statLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
     marginTop: 2,
   },
@@ -367,7 +367,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },

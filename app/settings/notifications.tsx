@@ -4,15 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     new_debates: true,
     results: true,
@@ -71,7 +71,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -88,7 +88,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   headerTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
     letterSpacing: -0.2,
   },
@@ -109,14 +109,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors['surface-container-low'] },
   rowText: { flex: 1 },
-  rowLabel: { fontFamily: fonts.medium, fontSize: 15, color: colors['on-surface'] },
-  rowSubtitle: { fontFamily: fonts.regular, fontSize: 12, color: colors['on-surface-variant'], marginTop: 2 },
+  rowLabel: { fontFamily: fonts.medium, fontSize: fs(15), color: colors['on-surface'] },
+  rowSubtitle: { fontFamily: fonts.regular, fontSize: fs(12), color: colors['on-surface-variant'], marginTop: 2 },
   hint: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['outline-variant'],
     marginTop: spacing[4],
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
 });
 

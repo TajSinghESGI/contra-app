@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import Icon from '@/components/ui/Icon';
 import { getDebateCoaching } from '@/services/api';
@@ -29,8 +29,8 @@ function ArgumentCard({
   index: number;
   onUpgrade: () => void;
 }) {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <Animated.View entering={FadeInDown.delay(index * 100).duration(400)}>
       <View style={styles.argumentCard}>
@@ -78,8 +78,8 @@ function MissedArgumentCard({
   index: number;
   onUpgrade: () => void;
 }) {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <Animated.View entering={FadeInDown.delay(300 + index * 80).duration(400)}>
       <View style={styles.missedCard}>
@@ -92,7 +92,7 @@ function MissedArgumentCard({
           <Text style={styles.missedBody}>{argument.fullText}</Text>
         ) : (
           <Pressable onPress={onUpgrade} accessibilityRole="button">
-            <Text style={styles.missedPreview} numberOfLines={2}>{argument.preview}</Text>
+            <Text style={styles.missedPreview} numberOfLines={2}>{argument.fullText}</Text>
             <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={styles.missedBlur}>
               <Icon name="crown" size={14} color={colors.primary} />
               <Text style={styles.lockedText}>Voir l'argument complet</Text>
@@ -107,8 +107,8 @@ function MissedArgumentCard({
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function CoachScreen() {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -236,7 +236,7 @@ export default function CoachScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -261,7 +261,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   headerTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
     letterSpacing: -0.2,
   },
@@ -291,7 +291,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   sectionCount: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
   },
   sectionSubtitle: {
@@ -328,7 +328,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   impactText: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['accent-user'],
   },
   criterionBadgeContainer: {
@@ -342,20 +342,20 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   criterionBadgeText: {
     fontFamily: fonts.medium,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
   userQuote: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: fs(22),
     color: colors['on-surface'],
     marginBottom: spacing[2],
   },
   verdictText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.error,
     marginBottom: spacing[3],
   },
@@ -376,8 +376,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   suggestionText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: fs(14),
+    lineHeight: fs(22),
     color: colors['on-surface'],
   },
 
@@ -394,7 +394,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   lockedText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors.primary,
   },
 
@@ -414,19 +414,19 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   missedTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
   },
   missedBody: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: fs(14),
+    lineHeight: fs(22),
     color: colors['on-surface-variant'],
   },
   missedPreview: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: fs(14),
+    lineHeight: fs(22),
     color: colors['on-surface-variant'],
     marginBottom: spacing[2],
   },
@@ -462,7 +462,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-primary'],
     letterSpacing: 0.3,
   },

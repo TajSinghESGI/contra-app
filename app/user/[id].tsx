@@ -18,16 +18,16 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useToast } from '@/components/ui/Toast';
 import { useFriendStore } from '@/store/friendStore';
 import { TOPICS } from '@/constants/topics';
-import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { getPublicProfile, type Friend, type PublicProfile, type PublicProfileDebate } from '@/services/api';
 
 // ─── Score chip ─────────────────────────────────────────────────────────────────
 
 function ResultChip({ result }: { result: 'win' | 'loss' }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const isWin = result === 'win';
   return (
     <View style={[styles.resultChip, isWin ? styles.chipWin : styles.chipLoss]}>
@@ -41,9 +41,9 @@ function ResultChip({ result }: { result: 'win' | 'loss' }) {
 // ─── Challenge sheet (owns its own state so it works inside present()) ────────
 
 function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: string, label: string, diff: string) => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedTopicLabel, setSelectedTopicLabel] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
@@ -119,9 +119,9 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
 export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { present, dismiss } = useBottomSheet();
   const sendChallenge = useFriendStore((s) => s.sendChallenge);
   const toast = useToast();
@@ -266,7 +266,7 @@ export default function UserProfileScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -316,18 +316,18 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: fonts.bold,
-    fontSize: 28,
+    fontSize: fs(28),
     color: colors['on-surface'],
   },
   userName: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: -0.3,
     color: colors['on-surface'],
   },
   userTitle: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
     marginTop: spacing[1],
     marginBottom: spacing[5],
@@ -341,13 +341,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   statItem: { alignItems: 'center', gap: 2 },
   statValue: {
     fontFamily: fonts.bold,
-    fontSize: 20,
+    fontSize: fs(20),
     color: colors['on-surface'],
     letterSpacing: -0.5,
   },
   statLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
   statDivider: {
@@ -376,7 +376,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   strengthText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
 
@@ -402,7 +402,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   debateTopic: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
   debateRight: {
@@ -412,7 +412,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   debateScore: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
     letterSpacing: -0.3,
   },
@@ -423,7 +423,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   chipWin:  { backgroundColor: '#e3f9e5' },
   chipLoss: { backgroundColor: '#ffe0dd' },
-  resultChipText: { fontFamily: fonts.semibold, fontSize: 10 },
+  resultChipText: { fontFamily: fonts.semibold, fontSize: fs(10) },
   chipTextWin:  { color: '#1e7e34' },
   chipTextLoss: { color: colors.error },
 
@@ -454,7 +454,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },
@@ -468,7 +468,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   sheetTitle: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: -0.3,
     color: colors['on-surface'],
   },
@@ -492,7 +492,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   topicChipText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
   topicChipTextActive: {
@@ -514,7 +514,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   diffPillText: {
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface'],
   },
   diffPillTextActive: {
@@ -528,7 +528,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   sheetCtaText: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },

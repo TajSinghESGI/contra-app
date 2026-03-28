@@ -1,5 +1,5 @@
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useRegisterStore } from '@/store/registerStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +30,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function RegisterStep1() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const sharedStyles = useMemo(() => createSharedStyles(colors), [colors]);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -207,8 +207,8 @@ export default function RegisterStep1() {
 // ─── Shared step dots ─────────────────────────────────────────────────────────
 
 export function StepDots({ current }: { current: number }) {
-  const { colors } = useTheme();
-  const sharedStyles = useMemo(() => createSharedStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <View style={sharedStyles.dotsRow}>
       {[0, 1, 2].map((i) => (
@@ -220,7 +220,7 @@ export function StepDots({ current }: { current: number }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-export const createSharedStyles = (colors: ColorTokens) => StyleSheet.create({
+export const createSharedStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topBar: {
     flexDirection: 'row', alignItems: 'center',
@@ -244,12 +244,12 @@ export const createSharedStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   title: { ...typography['headline-md'], color: colors['on-surface'], marginBottom: 6 },
   subtitle: { ...typography['body-sm'], color: colors['on-surface-variant'], marginBottom: spacing[6] },
-  fieldLabel: { fontFamily: fonts.semibold, fontSize: 13, color: colors['on-surface'], marginBottom: spacing[2] },
+  fieldLabel: { fontFamily: fonts.semibold, fontSize: fs(13), color: colors['on-surface'], marginBottom: spacing[2] },
   inputWrapper: {
     backgroundColor: colors['surface-container-low'], borderRadius: radius.lg,
     flexDirection: 'row', alignItems: 'center', borderColor: 'transparent',
   },
-  input: { flex: 1, paddingHorizontal: spacing[4], paddingVertical: 14, fontFamily: fonts.regular, fontSize: 15, color: colors['on-surface'] },
+  input: { flex: 1, paddingHorizontal: spacing[4], paddingVertical: 14, fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface'] },
   eyeBtn: { paddingHorizontal: 14, paddingVertical: 14 },
   ctaWrapper: {
     marginTop: spacing[6], borderRadius: radius.full,
@@ -258,24 +258,24 @@ export const createSharedStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.5, shadowOpacity: 0 },
   ctaGradient: { borderRadius: radius.full, height: 52, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: fonts.semibold, fontSize: 15, color: colors['on-primary'], letterSpacing: 0.5 },
+  ctaText: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-primary'], letterSpacing: 0.5 },
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
-  ...createSharedStyles(colors),
-  terms: { fontFamily: fonts.regular, fontSize: 12, color: colors['on-surface-variant'], textAlign: 'center', marginTop: spacing[3], lineHeight: 18 },
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
+  ...createSharedStyles(colors, typography, fs),
+  terms: { fontFamily: fonts.regular, fontSize: fs(12), color: colors['on-surface-variant'], textAlign: 'center', marginTop: spacing[3], lineHeight: fs(18) },
   termsLink: { fontFamily: fonts.bold, color: colors['on-surface'] },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing[5] },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors['surface-container-high'] },
-  dividerText: { fontFamily: fonts.semibold, fontSize: 11, color: colors['outline-variant'], letterSpacing: 1, paddingHorizontal: spacing[3] },
+  dividerText: { fontFamily: fonts.semibold, fontSize: fs(11), color: colors['outline-variant'], letterSpacing: 1, paddingHorizontal: spacing[3] },
   socialRow: { flexDirection: 'row', gap: 10 },
   socialBtn: {
     flex: 1, backgroundColor: colors['surface-container-low'], borderRadius: radius.lg, height: spacing[12],
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
   },
-  googleG: { fontFamily: fonts.bold, fontSize: 15, color: '#4285F4' },
-  socialBtnText: { fontFamily: fonts.medium, fontSize: 14, color: colors['on-surface'] },
+  googleG: { fontFamily: fonts.bold, fontSize: fs(15), color: '#4285F4' },
+  socialBtnText: { fontFamily: fonts.medium, fontSize: fs(14), color: colors['on-surface'] },
   footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: spacing[5] },
-  footerText: { fontFamily: fonts.regular, fontSize: 14, color: colors['on-surface-variant'] },
-  footerLink: { fontFamily: fonts.bold, fontSize: 14, color: colors['on-surface'] },
+  footerText: { fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'] },
+  footerLink: { fontFamily: fonts.bold, fontSize: fs(14), color: colors['on-surface'] },
 });

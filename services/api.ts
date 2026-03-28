@@ -319,12 +319,45 @@ export async function searchUsers(query: string): Promise<Friend[]> {
   return apiFetch<Friend[]>(`/api/users/search/?q=${encodeURIComponent(query)}`);
 }
 
-export async function addFriend(userId: string): Promise<void> {
-  await apiFetch(`/api/friends/${userId}/add/`, { method: 'POST' });
-}
-
 export async function removeFriend(userId: string): Promise<void> {
   await apiFetch(`/api/friends/${userId}/remove/`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// Friend Requests
+// ---------------------------------------------------------------------------
+
+export type FriendRequestDirection = 'incoming' | 'outgoing';
+export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface FriendRequest {
+  id: string;
+  from: Friend;
+  to: Friend;
+  status: FriendRequestStatus;
+  direction: FriendRequestDirection;
+  createdAt: string;
+}
+
+export async function getFriendRequests(): Promise<FriendRequest[]> {
+  return apiFetch<FriendRequest[]>('/api/friends/requests/');
+}
+
+export async function sendFriendRequest(userId: string): Promise<FriendRequest> {
+  return apiFetch<FriendRequest>(`/api/friends/requests/${userId}/`, { method: 'POST' });
+}
+
+export async function acceptFriendRequest(requestId: string): Promise<void> {
+  await apiFetch(`/api/friends/requests/${requestId}/accept/`, { method: 'PATCH' });
+}
+
+export async function declineFriendRequest(requestId: string): Promise<void> {
+  await apiFetch(`/api/friends/requests/${requestId}/decline/`, { method: 'PATCH' });
+}
+
+/** Register a referral — called at signup when the user came from an invite link. */
+export async function registerReferral(referrerId: string): Promise<void> {
+  await apiFetch('/api/friends/referral/', { method: 'POST', body: { referrer_id: referrerId } });
 }
 
 // ---------------------------------------------------------------------------

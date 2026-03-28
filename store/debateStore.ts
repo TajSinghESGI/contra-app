@@ -90,7 +90,14 @@ export const useDebateStore = create<DebateState>()((set) => ({
       topicId,
       topic,
       difficulty,
-      // Preserve the maxTurns default; callers can override via reset + setDebate
+      messages: [
+        {
+          id: 'ai-intro',
+          role: 'ai' as const,
+          content: `Le sujet est : « ${topic} ».\n\nVeuillez prendre position — pour ou contre — et défendez votre point de vue. Je prendrai automatiquement le camp opposé. Que le débat commence.`,
+          timestamp: new Date(),
+        },
+      ],
     }),
 
   addMessage: (message: DebateMessage) =>

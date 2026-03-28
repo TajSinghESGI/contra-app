@@ -1,6 +1,6 @@
 import { AnimatedScrollProgress } from '@/components/ui/AnimatedScrollProgress';
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,8 +16,8 @@ import type { AnalysisSection } from '@/services/api';
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function AnalysisScreen() {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id, topic } = useLocalSearchParams<{ id: string; topic?: string }>();
@@ -119,7 +119,7 @@ export default function AnalysisScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -152,7 +152,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 28,
+    fontSize: fs(28),
     letterSpacing: -0.3,
     color: colors['on-surface'],
     marginTop: spacing[2],
@@ -171,21 +171,21 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
     letterSpacing: -0.2,
     marginBottom: spacing[3],
   },
   fabText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     textAlign: 'center',
     color: colors['on-primary'],
   },
   sectionBody: {
     fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: fs(15),
+    lineHeight: fs(24),
     color: colors['on-surface-variant'],
   },
 });

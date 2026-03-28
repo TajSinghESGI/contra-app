@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '@/components/ui/Icon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useBottomSheet } from '@/components/ui/BottomSheetStack';
-import { DIFFICULTY_LEVELS, fonts, radius, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useFriendStore } from '@/store/friendStore';
 import { useTopicStore } from '@/store/topicStore';
@@ -77,9 +77,9 @@ function FriendPickerSheet({ friends, onSelect }: { friends: Friend[]; onSelect:
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const [step, setStep] = useState<Step>('category');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -374,7 +374,7 @@ export default function OnboardingScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -445,7 +445,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   customInput: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[4],
@@ -482,12 +482,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   chipEmoji: {
-    fontSize: 14,
+    fontSize: fs(14),
     marginRight: 5,
   },
   chipText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
   chipTextSelected: {
@@ -508,9 +508,9 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   topicRecapValue: {
     fontFamily: fonts.medium,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface'],
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
 
   // Topic cards (step 2)
@@ -524,18 +524,18 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     gap: spacing[2],
   },
   topicCardIcon: {
-    fontSize: 28,
+    fontSize: fs(28),
   },
   topicCardTitle: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: fs(17),
     letterSpacing: -0.2,
     color: colors['on-surface'],
   },
   topicCardDesc: {
     fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: fs(13),
+    lineHeight: fs(20),
     color: colors['on-surface-variant'],
   },
 
@@ -558,7 +558,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   diffName: {
     fontFamily: fonts.medium,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
   },
   diffNameActive: {
@@ -590,7 +590,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-primary'],
     letterSpacing: 0.3,
   },
@@ -607,7 +607,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   challengeFriendText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors.primary,
   },
 });

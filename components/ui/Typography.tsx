@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
 import { Text, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
-import { typography } from '@/constants/tokens';
+import { typography as typographyTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
-type TypographyVariant = keyof typeof typography;
+type TypographyVariant = keyof typeof typographyTokens;
 
 interface TypographyProps {
   variant: TypographyVariant;
@@ -22,7 +22,7 @@ export const Typography = memo(function Typography({
   numberOfLines,
   ellipsizeMode,
 }: TypographyProps) {
-  const { colors } = useTheme();
+  const { colors, typography } = useTheme();
   const color = colorProp ?? colors['on-surface'];
   return (
     <Text

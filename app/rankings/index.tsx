@@ -13,7 +13,7 @@ import Icon from '@/components/ui/Icon';
 import Dropdown from '@/components/ui/Dropdown';
 import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import { useRouter } from 'expo-router';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { SpectralWave } from '@/components/shared/SpectralWave';
 import { getGlobalRankings, getFriendsRankings, type RankingEntry as APIRankingEntry } from '@/services/api';
@@ -56,8 +56,8 @@ function mapApiRanking(entry: APIRankingEntry, currentUserId: string | undefined
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function TrendArrow({ direction }: { direction: TrendDirection }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   if (direction === 'neutral') {
     return <Text style={styles.trendNeutral}>—</Text>;
   }
@@ -71,9 +71,9 @@ function TrendArrow({ direction }: { direction: TrendDirection }) {
 }
 
 function RankingRow({ entry, onPress }: { entry: RankingEntry; onPress: () => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [pressed, setPressed] = useState(false);
 
   const isTop3 = entry.rank <= 3;
@@ -128,9 +128,9 @@ function RankingRow({ entry, onPress }: { entry: RankingEntry; onPress: () => vo
 }
 
 function AnimatedGradientButton({ onPress }: { onPress: () => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const scale = useRef(new Animated.Value(1)).current;
   const [dims, setDims] = useState({ width: 0, height: 0 });
   const CTA_WAVE_COLORS: [string, string, string] = [
@@ -182,9 +182,9 @@ type TabKey = 'global' | 'friends';
 
 export default function RankingsScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [activeTab, setActiveTab] = useState<TabKey>('global');
   const [selectedPeriod, setSelectedPeriod] = useState('week');
 
@@ -203,7 +203,7 @@ export default function RankingsScreen() {
         ]);
         if (!cancelled) {
           // Derive a simple userId to mark current user
-          const currentUserId = useAuthStore.getState().token ? undefined : undefined;
+          const currentUserId = useAuthStore.getState().user?.id;
           setGlobalRankings(globalData.map((e) => mapApiRanking(e, currentUserId)));
           setFriendsRankings(friendsData.map((e) => mapApiRanking(e, currentUserId)));
         }
@@ -321,7 +321,7 @@ export default function RankingsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -363,7 +363,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   togglePillText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
   togglePillTextActive: {
@@ -382,12 +382,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   filterText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
   filterItemText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
 
@@ -414,7 +414,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
 
   rankNumLarge: {
     fontFamily: fonts.light,
-    fontSize: 16,
+    fontSize: fs(16),
     fontStyle: 'italic',
     color: colors['outline-variant'],
     width: 28,
@@ -422,7 +422,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   rankNumSmall: {
     fontFamily: fonts.light,
-    fontSize: 13,
+    fontSize: fs(13),
     fontStyle: 'italic',
     color: colors['outline-variant'],
     width: 28,
@@ -439,12 +439,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   rankAvatarInitial: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
   rankAvatarInitialLarge: {
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: fs(16),
   },
 
   rankInfo: {
@@ -452,22 +452,22 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   rankName: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   rankNameBold: {
     fontFamily: fonts.bold,
   },
   rankTitle: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
     marginTop: 1,
   },
   youLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
 
@@ -477,12 +477,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   rankScore: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
   rankScoreBold: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: fs(15),
   },
   trendContainer: {
     alignItems: 'center',
@@ -491,7 +491,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   trendNeutral: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['outline-variant'],
   },
 
@@ -513,7 +513,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   stickyBarText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
   stickyBarArrow: {
@@ -534,7 +534,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   boostCtaText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },

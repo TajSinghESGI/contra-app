@@ -31,10 +31,10 @@ const DIFFICULTIES = [
 ] as const;
 
 export default function RegisterLevel() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const sharedStyles = useMemo(() => createSharedStyles(colors), [colors]);
-  const styles = useMemo(() => createLocalStyles(colors), [colors]);
+  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
+  const styles = useMemo(() => createLocalStyles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { fullName, email, password, selectedTopics, selectedDifficulty, setDifficulty, reset } = useRegisterStore();
@@ -139,7 +139,7 @@ export default function RegisterLevel() {
   );
 }
 
-const createLocalStyles = (colors: ColorTokens) => StyleSheet.create({
+const createLocalStyles = (colors: ColorTokens, fs: (n: number) => number) => StyleSheet.create({
   list: { gap: 10 },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -153,12 +153,12 @@ const createLocalStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: 2 },
-  label: { fontFamily: fonts.semibold, fontSize: 15, color: colors['on-surface-variant'] },
+  label: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-surface-variant'] },
   labelActive: { color: colors['on-surface'] },
-  desc: { fontFamily: fonts.regular, fontSize: 12, color: colors['outline-variant'] },
+  desc: { fontFamily: fonts.regular, fontSize: fs(12), color: colors['outline-variant'] },
   proBadge: {
     backgroundColor: '#AF52DE', borderRadius: radius.md,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  proBadgeText: { fontFamily: fonts.bold, fontSize: 9, color: colors['surface-container-lowest'], letterSpacing: 0.5 },
+  proBadgeText: { fontFamily: fonts.bold, fontSize: fs(9), color: colors['surface-container-lowest'], letterSpacing: 0.5 },
 });

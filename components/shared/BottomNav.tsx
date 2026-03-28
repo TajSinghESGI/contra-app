@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { typography, type ColorTokens } from '@/constants/tokens';
+import { type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 type TabName = 'index' | 'arenas' | 'analytics' | 'profile';
@@ -44,8 +44,8 @@ function TabItem({
   isActive: boolean;
   onPress: () => void;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -86,8 +86,8 @@ function TabItem({
 
 export default function BottomNav({ activeTab, onTabPress }: BottomNavProps) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   return (
     <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={styles.blurBase}>
@@ -106,7 +106,7 @@ export default function BottomNav({ activeTab, onTabPress }: BottomNavProps) {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   blurBase: {
     position: 'absolute',
     bottom: 0,

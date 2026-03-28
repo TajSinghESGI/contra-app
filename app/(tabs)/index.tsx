@@ -1,9 +1,10 @@
 import { LiveDot } from '@/components/shared/LiveDot';
 import { SpectralWave } from '@/components/shared/SpectralWave';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { getActivityFeed, type ActivityEntry } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 import { useStreakStore } from '@/store/streakStore';
 import { useTopicStore } from '@/store/topicStore';
 import { useRouter } from 'expo-router';
@@ -20,9 +21,9 @@ import { useTranslation } from 'react-i18next';
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function AnimatedCTAButton({ onPress }: { onPress: () => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const scale = useRef(new Animated.Value(1)).current;
   const [buttonWidth, setButtonWidth] = useState(0);
   const ctaWaveColors: [string, string, string] = [
@@ -80,12 +81,14 @@ function AnimatedCTAButton({ onPress }: { onPress: () => void }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
 
   const { topics, fetchTopics } = useTopicStore();
+  const user = useAuthStore((s) => s.user);
+  const defaultDifficulty = user?.default_difficulty ?? 'medium';
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
   React.useEffect(() => { fetchTopics(); }, []);
@@ -134,7 +137,10 @@ export default function HomeScreen() {
           {dailyTopic?.question}
         </Text>
         <Text style={styles.heroMeta}>3 500 débats aujourd'hui · 2.4k en ligne</Text>
-        <AnimatedCTAButton onPress={() => router.push('/onboarding')} />
+        <AnimatedCTAButton onPress={() => router.push({
+          pathname: '/debate/new',
+          params: { topic: dailyTopic?.question ?? '', topicId: dailyTopic?.id ?? '', difficulty: defaultDifficulty },
+        })} />
       </View>
 
       {/* ── Trending Arenas ── */}
@@ -147,16 +153,8 @@ export default function HomeScreen() {
             <Pressable
               style={({ pressed }) => [styles.bentoLarge, styles.cardShadow, pressed && { opacity: 0.9 }]}
               onPress={() => router.push({
-                pathname: '/arena/[id]',
-                params: {
-                  id: trending[0].id,
-                  title: trending[0].question,
-                  description: trending[0].description,
-                  category: trending[0].category,
-                  difficulty: 'hard',
-                  participants: '247',
-                  isLive: 'true',
-                },
+                pathname: '/debate/new',
+                params: { topic: trending[0].question, topicId: trending[0].id, difficulty: defaultDifficulty },
               })}
               accessibilityRole="button"
             >
@@ -188,15 +186,8 @@ export default function HomeScreen() {
               <Pressable
                 style={({ pressed }) => [styles.bentoSmall, styles.cardShadow, pressed && { opacity: 0.9 }]}
                 onPress={() => router.push({
-                  pathname: '/arena/[id]',
-                  params: {
-                    id: trending[1].id,
-                    title: trending[1].question,
-                    description: trending[1].description,
-                    category: trending[1].category,
-                    difficulty: 'medium',
-                    participants: '856',
-                    isLive: 'true',
+                  pathname: '/debate/new',
+                  params: { topic: trending[1].question, topicId: trending[1].id, difficulty: defaultDifficulty,
                   },
                 })}
                 accessibilityRole="button"
@@ -210,16 +201,8 @@ export default function HomeScreen() {
               <Pressable
                 style={({ pressed }) => [styles.bentoSmall, styles.cardShadow, pressed && { opacity: 0.9 }]}
                 onPress={() => router.push({
-                  pathname: '/arena/[id]',
-                  params: {
-                    id: trending[2].id,
-                    title: trending[2].question,
-                    description: trending[2].description,
-                    category: trending[2].category,
-                    difficulty: 'medium',
-                    participants: '1284',
-                    isLive: 'true',
-                  },
+                  pathname: '/debate/new',
+                  params: { topic: trending[2].question, topicId: trending[2].id, difficulty: defaultDifficulty },
                 })}
                 accessibilityRole="button"
               >
@@ -258,7 +241,7 @@ export default function HomeScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   avatarCircle: {
     width: 32,
     height: 32,
@@ -269,7 +252,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: fonts.bold,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface'],
   },
 
@@ -293,7 +276,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   streakText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
 
@@ -317,14 +300,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   heroHeadline: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: -0.3,
     color: colors['on-surface'],
-    lineHeight: 30,
+    lineHeight: fs(30),
   },
   heroMeta: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
     marginTop: spacing[2],
   },
@@ -341,7 +324,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-primary'],
     letterSpacing: 1,
   },
@@ -386,16 +369,16 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   liveText: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
 
   bentoTitle: {
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-surface'],
     marginTop: spacing[2],
-    lineHeight: 22,
+    lineHeight: fs(22),
   },
   bentoBottom: {
     flexDirection: 'row',
@@ -405,7 +388,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   participantsText: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
   avatarStack: {
@@ -425,13 +408,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   bentoSmallTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
     marginTop: spacing[1],
   },
   bentoNewActivity: {
     fontFamily: fonts.regular,
-    fontSize: 10,
+    fontSize: fs(10),
     color: colors['on-surface-variant'],
     marginTop: spacing[1],
   },
@@ -454,7 +437,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   activityInitial: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
   activityContent: {
@@ -462,15 +445,15 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   activityName: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   activitySnippet: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
-    lineHeight: 18,
+    lineHeight: fs(18),
   },
   activityTime: {
     ...typography['label-sm'],

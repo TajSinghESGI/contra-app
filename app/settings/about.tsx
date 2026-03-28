@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 const APP_VERSION = '1.0.0';
@@ -12,9 +12,9 @@ const APP_VERSION = '1.0.0';
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const LINKS = [
     { label: t('settings.about.privacyPolicy'), url: 'https://contra.app/privacy' },
@@ -80,7 +80,7 @@ export default function AboutScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -91,7 +91,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors['surface-container-lowest'],
     alignItems: 'center', justifyContent: 'center', ...shadows.ambient,
   },
-  headerTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors['on-surface'], letterSpacing: -0.2 },
+  headerTitle: { fontFamily: fonts.semibold, fontSize: fs(16), color: colors['on-surface'], letterSpacing: -0.2 },
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   sectionLabel: { ...typography['label-sm'], color: colors.outline, marginBottom: spacing[3], marginTop: spacing[5] },
 
@@ -108,15 +108,15 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   logoImage: { width: 40, height: 40 },
   wordmark: {
-    fontFamily: fonts.bold, fontSize: 28, letterSpacing: -1,
+    fontFamily: fonts.bold, fontSize: fs(28), letterSpacing: -1,
     color: colors['on-surface'], marginBottom: spacing[1],
   },
   tagline: {
-    fontFamily: fonts.regular, fontSize: 13,
+    fontFamily: fonts.regular, fontSize: fs(13),
     color: colors['on-surface-variant'], textAlign: 'center',
     marginBottom: spacing[3],
   },
-  version: { fontFamily: fonts.regular, fontSize: 12, color: colors.outline },
+  version: { fontFamily: fonts.regular, fontSize: fs(12), color: colors.outline },
 
   textCard: {
     backgroundColor: colors['surface-container-lowest'],
@@ -124,7 +124,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     ...shadows.ambient,
   },
   body: {
-    fontFamily: fonts.regular, fontSize: 15, lineHeight: 24,
+    fontFamily: fonts.regular, fontSize: fs(15), lineHeight: fs(24),
     color: colors['on-surface'],
   },
 
@@ -137,9 +137,9 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     paddingHorizontal: spacing[4], paddingVertical: 14,
   },
   linkBorder: { borderBottomWidth: 1, borderBottomColor: colors['surface-container-low'] },
-  linkLabel: { fontFamily: fonts.regular, fontSize: 15, color: colors['on-surface'] },
+  linkLabel: { fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface'] },
   copyright: {
-    fontFamily: fonts.regular, fontSize: 11, color: colors['outline-variant'],
+    fontFamily: fonts.regular, fontSize: fs(11), color: colors['outline-variant'],
     textAlign: 'center', marginTop: spacing[6],
   },
 });

@@ -2,10 +2,11 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import Icon from '@/components/ui/Icon';
 import { Toast } from '@/components/ui/Toast';
-import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { TOPICS, CATEGORIES } from '@/constants/topics';
 import { useTheme } from '@/hooks/useTheme';
-import type { Challenge, Friend } from '@/services/api';
+import type { Challenge, Friend, FriendRequest } from '@/services/api';
+import { MorphingChips } from '@/components/ui/MorphingChips';
 import { useFriendStore } from '@/store/friendStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LegendList } from '@legendapp/list';
@@ -13,23 +14,25 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuthStore } from '@/store/authStore';
 
 // ─── Challenge sheet ─────────────────────────────────────────────────────────
 
 function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: string, label: string, diff: string) => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [sheetStep, setSheetStep] = useState<'category' | 'topic' | 'difficulty'>('category');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<{ question: string; label: string } | null>(null);
@@ -182,8 +185,8 @@ function FriendRow({
   friend: Friend;
   onChallenge: (friend: Friend) => void;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   return (
     <View style={styles.row}>
@@ -204,14 +207,18 @@ function FriendRow({
 
 function SearchResultRow({
   friend,
-  onAdd,
+  onSendRequest,
+  isRequested,
+  isFriend,
 }: {
   friend: Friend;
-  onAdd: (friend: Friend) => void;
+  onSendRequest: () => void;
+  isRequested: boolean;
+  isFriend: boolean;
 }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   return (
     <View style={styles.row}>
@@ -223,17 +230,69 @@ function SearchResultRow({
         <Text style={styles.rowLevel}>{friend.level}</Text>
       </View>
       <Text style={styles.rowScore}>{friend.score.toLocaleString('fr-FR')}</Text>
-      <Pressable style={styles.addButton} onPress={() => onAdd(friend)}>
-        <Text style={styles.addButtonText}>{t('friends.add')}</Text>
-      </Pressable>
+      {isFriend ? (
+        <View style={styles.addButton}>
+          <Ionicons name="checkmark" size={14} color={colors['on-primary']} />
+        </View>
+      ) : isRequested ? (
+        <View style={styles.requestedPill}>
+          <Text style={styles.requestedPillText}>{t('friends.requested')}</Text>
+        </View>
+      ) : (
+        <Pressable style={styles.addButton} onPress={onSendRequest}>
+          <Text style={styles.addButtonText}>{t('friends.add')}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function RequestRow({
+  request,
+  onAccept,
+  onDecline,
+}: {
+  request: FriendRequest;
+  onAccept?: () => void;
+  onDecline?: () => void;
+}) {
+  const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+  const person = request.direction === 'incoming' ? request.from : request.to;
+  const isIncoming = request.direction === 'incoming';
+
+  return (
+    <View style={styles.friendRow}>
+      <View style={[styles.friendAvatar, { backgroundColor: person.avatarBg }]}>
+        <Text style={styles.friendAvatarText}>{person.initial}</Text>
+      </View>
+      <View style={styles.friendInfo}>
+        <Text style={styles.friendName}>{person.name}</Text>
+        <Text style={styles.friendLevel}>{person.level}</Text>
+      </View>
+      {isIncoming ? (
+        <View style={styles.requestActions}>
+          <TouchableOpacity style={styles.acceptButton} onPress={onAccept} activeOpacity={0.7}>
+            <Text style={styles.acceptButtonText}>{t('friends.requests.accept')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.declineButton} onPress={onDecline} activeOpacity={0.7}>
+            <Text style={styles.declineButtonText}>{t('friends.requests.decline')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.requestedPill}>
+          <Text style={styles.requestedPillText}>{t('friends.requested')}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const label =
     status === 'pending'
@@ -256,9 +315,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function DifficultyBadge({ difficulty }: { difficulty: string }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const label =
     difficulty === 'easy'
@@ -292,8 +351,8 @@ function ChallengeRow({
   challenge: Challenge;
   onPress: (challenge: Challenge) => void;
 }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const opponent = challenge.from.id === 'me' ? challenge.to : challenge.from;
   const isSent = challenge.from.id === 'me';
@@ -333,67 +392,96 @@ function ChallengeRow({
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-type TabKey = 'friends' | 'challenges';
+type TabKey = 'friends' | 'requests' | 'challenges';
 
 export default function FriendsScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [activeTab, setActiveTab] = useState<TabKey>('friends');
   const [searchText, setSearchText] = useState('');
 
   const {
     friends,
     searchResults,
+    friendRequests,
+    sentRequestUserIds,
     challenges,
     fetchFriends,
     searchUsers,
     clearSearch,
-    addFriend,
+    fetchFriendRequests,
+    sendFriendRequest,
+    acceptFriendRequest,
+    declineFriendRequest,
     fetchChallenges,
   } = useFriendStore();
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<TextInput>(null);
+
   useEffect(() => {
     fetchFriends();
+    fetchFriendRequests();
     fetchChallenges();
-  }, [fetchFriends, fetchChallenges]);
+  }, [fetchFriends, fetchFriendRequests, fetchChallenges]);
 
-  const handleSearch = useCallback(
-    (text: string) => {
-      setSearchText(text);
-      if (text.trim()) {
-        searchUsers(text);
-      } else {
-        clearSearch();
-      }
-    },
-    [searchUsers, clearSearch],
-  );
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  const handleAddFriend = useCallback(
-    (friend: Friend) => {
-      addFriend(friend);
-    },
-    [addFriend],
-  );
+  const handleSearch = useCallback((text: string) => {
+    setSearchText(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.trim()) {
+      debounceRef.current = setTimeout(() => searchUsers(text), 350);
+    } else {
+      clearSearch();
+    }
+  }, [searchUsers, clearSearch]);
+
+  const handleSendRequest = useCallback(async (friend: Friend) => {
+    try {
+      await sendFriendRequest(friend);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Toast.show(t('friends.requestSent'), { type: 'success', duration: 2000 });
+    } catch {
+      Toast.show(t('common.error'), { type: 'error', duration: 2000 });
+    }
+  }, [sendFriendRequest, t]);
 
   const { present, dismiss } = useBottomSheet();
   const sendChallengeAction = useFriendStore((s) => s.sendChallenge);
 
-  const handleChallenge = useCallback(
-    (_friend: Friend) => {
-      Toast.show(t('common.comingSoon'), { type: 'info', duration: 2000 });
-    },
-    [t],
-  );
+  const handleChallenge = useCallback((friend: Friend) => {
+    present(
+      <BottomSheet
+        snapPoints={['75%']}
+        enableBackdrop
+        dismissOnBackdropPress
+        dismissOnSwipeDown
+        backgroundColor={colors['surface-container-lowest']}
+      >
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+          <ChallengeSheet
+            friend={friend}
+            onSend={async (topic, label, diff) => {
+              try {
+                await sendChallengeAction(friend, topic, label, diff);
+                dismiss();
+                Toast.show(t('friends.sent'), { type: 'success', duration: 2000 });
+              } catch {
+                Toast.show(t('common.error'), { type: 'error', duration: 2000 });
+              }
+            }}
+          />
+        </ScrollView>
+      </BottomSheet>
+    );
+  }, [present, dismiss, colors, sendChallengeAction, t]);
 
-  const handleChallengePress = useCallback(
-    (_challenge: Challenge) => {
-      Toast.show(t('common.comingSoon'), { type: 'info', duration: 2000 });
-    },
-    [t],
-  );
+  const handleChallengePress = useCallback((challenge: Challenge) => {
+    router.push({ pathname: '/challenge/[id]', params: { id: challenge.id } });
+  }, [router]);
 
   const isSearching = searchText.trim().length > 0;
 
@@ -404,11 +492,46 @@ export default function FriendsScreen() {
     [handleChallenge],
   );
 
+  const userId = useAuthStore((s) => s.user?.id);
+
+  const handleInvite = useCallback(async () => {
+    const link = `https://contra.app/invite/${userId ?? ''}`;
+    await Share.share({
+      message: `${t('friends.inviteMessage')} ${link}`,
+    });
+  }, [userId, t]);
+
+  const incomingCount = useMemo(
+    () => friendRequests.filter(r => r.direction === 'incoming' && r.status === 'pending').length,
+    [friendRequests],
+  );
+
+  const TAB_KEYS: TabKey[] = ['friends', 'requests', 'challenges'];
+
+  const chipItems = useMemo(() => [
+    { key: 'friends', label: t('friends.tabs.friends') },
+    { key: 'requests', label: t('friends.tabs.requests'), badge: incomingCount },
+    { key: 'challenges', label: t('friends.tabs.challenges') },
+  ], [t, incomingCount]);
+
+  const activeTabIndex = TAB_KEYS.indexOf(activeTab);
+
+  const handleTabChange = useCallback((key: string) => {
+    setActiveTab(key as TabKey);
+  }, []);
+
+  const friendIds = useMemo(() => new Set(friends.map(f => f.id)), [friends]);
+
   const renderSearchItem = useCallback(
     ({ item }: { item: Friend }) => (
-      <SearchResultRow friend={item} onAdd={handleAddFriend} />
+      <SearchResultRow
+        friend={item}
+        onSendRequest={() => handleSendRequest(item)}
+        isRequested={sentRequestUserIds.includes(item.id)}
+        isFriend={friendIds.has(item.id)}
+      />
     ),
-    [handleAddFriend],
+    [handleSendRequest, sentRequestUserIds, friendIds],
   );
 
   const renderChallengeItem = useCallback(
@@ -433,6 +556,7 @@ export default function FriendsScreen() {
         <View style={styles.searchContainer}>
           <Icon name="search" size={16} color={colors['outline-variant']} />
           <TextInput
+            ref={searchInputRef}
             style={styles.searchInput}
             placeholder={t('friends.search')}
             placeholderTextColor={colors['outline-variant']}
@@ -448,24 +572,13 @@ export default function FriendsScreen() {
           )}
         </View>
 
-        {/* ── Toggle pills ── */}
+        {/* ── Toggle chips ── */}
         {!isSearching && (
-          <View style={styles.toggleRow}>
-            {(['friends', 'challenges'] as const).map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <Pressable
-                  key={tab}
-                  onPress={() => setActiveTab(tab)}
-                  style={[styles.togglePill, isActive && styles.togglePillActive]}
-                >
-                  <Text style={[styles.togglePillText, isActive && styles.togglePillTextActive]}>
-                    {tab === 'friends' ? t('friends.tabs.friends') : t('friends.tabs.challenges')}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <MorphingChips
+            items={chipItems}
+            activeIndex={activeTabIndex}
+            onChange={handleTabChange}
+          />
         )}
       </View>
 
@@ -498,6 +611,53 @@ export default function FriendsScreen() {
             </View>
           }
         />
+      ) : activeTab === 'requests' ? (
+        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          {friendRequests.filter(r => r.direction === 'incoming' && r.status === 'pending').length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>{t('friends.requests.incoming')}</Text>
+              {friendRequests
+                .filter(r => r.direction === 'incoming' && r.status === 'pending')
+                .map(req => (
+                  <RequestRow
+                    key={req.id}
+                    request={req}
+                    onAccept={async () => {
+                      try {
+                        await acceptFriendRequest(req.id);
+                        Toast.show(t('friends.requestAccepted', { name: req.from.name }), { type: 'success', duration: 2000 });
+                      } catch {
+                        Toast.show(t('common.error'), { type: 'error', duration: 2000 });
+                      }
+                    }}
+                    onDecline={async () => {
+                      try {
+                        await declineFriendRequest(req.id);
+                        Toast.show(t('friends.requestDeclined'), { type: 'info', duration: 2000 });
+                      } catch {
+                        Toast.show(t('common.error'), { type: 'error', duration: 2000 });
+                      }
+                    }}
+                  />
+                ))}
+            </>
+          )}
+          {friendRequests.filter(r => r.direction === 'outgoing' && r.status === 'pending').length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>{t('friends.requests.outgoing')}</Text>
+              {friendRequests
+                .filter(r => r.direction === 'outgoing' && r.status === 'pending')
+                .map(req => (
+                  <RequestRow key={req.id} request={req} />
+                ))}
+            </>
+          )}
+          {friendRequests.filter(r => r.status === 'pending').length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{t('friends.requests.empty')}</Text>
+            </View>
+          )}
+        </ScrollView>
       ) : (
         <LegendList
           data={challenges}
@@ -514,20 +674,73 @@ export default function FriendsScreen() {
         />
       )}
 
-      {/* ── Bottom invite ── */}
-      <View style={styles.bottomBar}>
-        <Pressable style={styles.inviteButton}>
-          <Ionicons name="share-social-outline" size={16} color={colors['on-primary']} />
-          <Text style={styles.inviteText}>{t('friends.invite')}</Text>
-        </Pressable>
-      </View>
+      {/* ── FAB → Bottom sheet ── */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          present(
+            <BottomSheet
+              snapPoints={['30%']}
+              enableBackdrop
+              dismissOnBackdropPress
+              dismissOnSwipeDown
+              backgroundColor={colors['surface-container-lowest']}
+            >
+              <View style={styles.addSheetContent}>
+                <Text style={styles.addSheetTitle}>{t('friends.addFriend')}</Text>
+                <Pressable
+                  style={styles.addSheetRow}
+                  onPress={() => {
+                    dismiss();
+                    setActiveTab('friends');
+                    setTimeout(() => searchInputRef.current?.focus(), 300);
+                  }}
+                >
+                  <View style={styles.addSheetIcon}>
+                    <Icon name="search" size={18} color={colors['on-surface']} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.addSheetRowTitle}>{t('friends.searchOnApp')}</Text>
+                    <Text style={styles.addSheetRowSub}>{t('friends.searchOnAppSub')}</Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color={colors['outline-variant']} />
+                </Pressable>
+                <Pressable
+                  style={styles.addSheetRow}
+                  onPress={() => {
+                    dismiss();
+                    handleInvite();
+                  }}
+                >
+                  <View style={styles.addSheetIcon}>
+                    <Ionicons name="share-social-outline" size={18} color={colors['on-surface']} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.addSheetRowTitle}>{t('friends.invite')}</Text>
+                    <Text style={styles.addSheetRowSub}>{t('friends.inviteSub')}</Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color={colors['outline-variant']} />
+                </Pressable>
+              </View>
+            </BottomSheet>
+          );
+        }}
+      >
+        <LinearGradient
+          colors={[colors.primary, colors['primary-dim']]}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="person-add-outline" size={22} color={colors['on-primary']} />
+        </LinearGradient>
+      </Pressable>
     </View>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) =>
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) =>
   StyleSheet.create({
     root: {
       flex: 1,
@@ -569,35 +782,12 @@ const createStyles = (colors: ColorTokens) =>
     searchInput: {
       flex: 1,
       fontFamily: fonts.regular,
-      fontSize: 15,
+      fontSize: fs(15),
       color: colors['on-surface'],
       padding: 0,
     },
 
     // Toggle
-    toggleRow: {
-      flexDirection: 'row',
-      gap: spacing[2],
-      marginTop: spacing[4],
-    },
-    togglePill: {
-      paddingVertical: spacing[2],
-      paddingHorizontal: spacing[5],
-      borderRadius: radius.full,
-      backgroundColor: colors['surface-container-high'],
-    },
-    togglePillActive: {
-      backgroundColor: colors.primary,
-    },
-    togglePillText: {
-      fontFamily: fonts.medium,
-      fontSize: 13,
-      color: colors['on-surface-variant'],
-    },
-    togglePillTextActive: {
-      fontFamily: fonts.semibold,
-      color: colors['on-primary'],
-    },
 
     // List
     listContent: {
@@ -629,7 +819,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     avatarInitial: {
       fontFamily: fonts.bold,
-      fontSize: 15,
+      fontSize: fs(15),
       color: colors['on-surface'],
     },
 
@@ -639,19 +829,19 @@ const createStyles = (colors: ColorTokens) =>
     },
     rowName: {
       fontFamily: fonts.medium,
-      fontSize: 14,
+      fontSize: fs(14),
       color: colors['on-surface'],
-      lineHeight: 18,
+      lineHeight: fs(18),
     },
     rowLevel: {
       fontFamily: fonts.regular,
-      fontSize: 11,
+      fontSize: fs(11),
       color: colors['on-surface-variant'],
       marginTop: 1,
     },
     rowScore: {
       fontFamily: fonts.semibold,
-      fontSize: 13,
+      fontSize: fs(13),
       color: colors['on-surface'],
     },
 
@@ -664,7 +854,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     challengeButtonText: {
       fontFamily: fonts.semibold,
-      fontSize: 11,
+      fontSize: fs(11),
       color: colors['on-primary'],
       letterSpacing: 0.3,
     },
@@ -678,7 +868,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     addButtonText: {
       fontFamily: fonts.semibold,
-      fontSize: 11,
+      fontSize: fs(11),
       color: colors['on-primary'],
       letterSpacing: 0.3,
     },
@@ -689,7 +879,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     challengeTopic: {
       fontFamily: fonts.regular,
-      fontSize: 11,
+      fontSize: fs(11),
       color: colors['on-surface-variant'],
       marginTop: 1,
     },
@@ -707,7 +897,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     diffBadgeText: {
       fontFamily: fonts.semibold,
-      fontSize: 9,
+      fontSize: fs(9),
       letterSpacing: 0.3,
     },
 
@@ -723,7 +913,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     statusBadgeText: {
       fontFamily: fonts.semibold,
-      fontSize: 9,
+      fontSize: fs(9),
       color: colors['on-surface-variant'],
       letterSpacing: 0.3,
     },
@@ -738,32 +928,66 @@ const createStyles = (colors: ColorTokens) =>
     },
     emptyText: {
       fontFamily: fonts.regular,
-      fontSize: 15,
+      fontSize: fs(15),
       color: colors['on-surface-variant'],
     },
 
-    // Bottom bar
-    bottomBar: {
+    // FAB
+    fab: {
       position: 'absolute',
       bottom: spacing[8],
-      left: spacing[5],
       right: spacing[5],
-    },
-    inviteButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing[2],
-      backgroundColor: colors.primary,
-      borderRadius: radius.full,
-      paddingVertical: 14,
       ...shadows.float,
     },
-    inviteText: {
+    fabGradient: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    // Add friend sheet
+    addSheetContent: {
+      paddingHorizontal: spacing[5],
+      paddingTop: spacing[2],
+      paddingBottom: spacing[10],
+      gap: spacing[3],
+    },
+    addSheetTitle: {
+      fontFamily: fonts.bold,
+      fontSize: fs(20),
+      letterSpacing: -0.3,
+      color: colors['on-surface'],
+      marginBottom: spacing[1],
+    },
+    addSheetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[3],
+      backgroundColor: colors['surface-container-low'],
+      borderRadius: radius.xl,
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing[4],
+    },
+    addSheetIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors['surface-container-high'],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addSheetRowTitle: {
       fontFamily: fonts.semibold,
-      fontSize: 14,
-      color: colors['on-primary'],
-      letterSpacing: 0.3,
+      fontSize: fs(14),
+      color: colors['on-surface'],
+    },
+    addSheetRowSub: {
+      fontFamily: fonts.regular,
+      fontSize: fs(12),
+      color: colors['on-surface-variant'],
+      marginTop: 2,
     },
 
     // Challenge icon
@@ -782,6 +1006,94 @@ const createStyles = (colors: ColorTokens) =>
       justifyContent: 'center',
     },
 
+    // Friend row (for RequestRow)
+    friendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[3],
+      backgroundColor: colors['surface-container-lowest'],
+      borderRadius: radius.xl,
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing[3],
+      marginBottom: spacing[2],
+      ...shadows.ambient,
+    },
+    friendAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    friendAvatarText: {
+      fontFamily: fonts.bold,
+      fontSize: fs(15),
+      color: colors['on-surface'],
+    },
+    friendInfo: {
+      flex: 1,
+    },
+    friendName: {
+      fontFamily: fonts.medium,
+      fontSize: fs(14),
+      color: colors['on-surface'],
+      lineHeight: fs(18),
+    },
+    friendLevel: {
+      fontFamily: fonts.regular,
+      fontSize: fs(11),
+      color: colors['on-surface-variant'],
+      marginTop: 1,
+    },
+
+    // Request actions
+    requestActions: {
+      flexDirection: 'row',
+      gap: spacing[2],
+    },
+    acceptButton: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.full,
+      paddingHorizontal: spacing[3],
+      paddingVertical: 8,
+    },
+    acceptButtonText: {
+      fontFamily: fonts.semibold,
+      fontSize: fs(12),
+      color: colors['on-primary'],
+    },
+    declineButton: {
+      backgroundColor: colors['surface-container-high'],
+      borderRadius: radius.full,
+      paddingHorizontal: spacing[3],
+      paddingVertical: 8,
+    },
+    declineButtonText: {
+      fontFamily: fonts.medium,
+      fontSize: fs(12),
+      color: colors['on-surface-variant'],
+    },
+    requestedPill: {
+      backgroundColor: colors['surface-container-high'],
+      borderRadius: radius.full,
+      paddingHorizontal: spacing[3],
+      paddingVertical: 8,
+    },
+    requestedPillText: {
+      fontFamily: fonts.medium,
+      fontSize: fs(12),
+      color: colors['outline-variant'],
+    },
+    sectionLabel: {
+      fontFamily: fonts.bold,
+      fontSize: 10,
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+      color: colors.outline,
+      marginTop: spacing[4],
+      marginBottom: spacing[2],
+      paddingHorizontal: spacing[4],
+    },
     // Challenge sheet
     sheetContent: {
       paddingHorizontal: spacing[5],
@@ -791,7 +1103,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetTitle: {
       fontFamily: fonts.bold,
-      fontSize: 22,
+      fontSize: fs(22),
       letterSpacing: -0.3,
       color: colors['on-surface'],
     },
@@ -808,7 +1120,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetBackText: {
       fontFamily: fonts.medium,
-      fontSize: 14,
+      fontSize: fs(14),
       color: colors['on-surface'],
     },
     sheetCustomRow: {
@@ -821,7 +1133,7 @@ const createStyles = (colors: ColorTokens) =>
     sheetCustomInput: {
       flex: 1,
       fontFamily: fonts.regular,
-      fontSize: 15,
+      fontSize: fs(15),
       color: colors['on-surface'],
       paddingHorizontal: spacing[4],
       paddingVertical: spacing[3],
@@ -851,14 +1163,14 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetTopicTitle: {
       fontFamily: fonts.semibold,
-      fontSize: 15,
+      fontSize: fs(15),
       color: colors['on-surface'],
     },
     sheetTopicDesc: {
       fontFamily: fonts.regular,
-      fontSize: 12,
+      fontSize: fs(12),
       color: colors['on-surface-variant'],
-      lineHeight: 18,
+      lineHeight: fs(18),
       marginTop: 2,
     },
     sheetTopicRecap: {
@@ -874,9 +1186,9 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetTopicRecapValue: {
       fontFamily: fonts.medium,
-      fontSize: 14,
+      fontSize: fs(14),
       color: colors['on-surface'],
-      lineHeight: 20,
+      lineHeight: fs(20),
     },
     sheetOrDivider: {
       ...typography['label-md'],
@@ -908,7 +1220,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetChipText: {
       fontFamily: fonts.medium,
-      fontSize: 13,
+      fontSize: fs(13),
       color: colors['on-surface'],
     },
     sheetChipTextActive: {
@@ -930,7 +1242,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetDiffText: {
       fontFamily: fonts.semibold,
-      fontSize: 10,
+      fontSize: fs(10),
       letterSpacing: 0.5,
       color: colors['on-surface-variant'],
     },
@@ -948,7 +1260,7 @@ const createStyles = (colors: ColorTokens) =>
     },
     sheetCtaText: {
       fontFamily: fonts.semibold,
-      fontSize: 16,
+      fontSize: fs(16),
       color: colors['on-primary'],
       letterSpacing: 0.3,
     },

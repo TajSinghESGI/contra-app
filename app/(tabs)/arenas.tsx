@@ -26,9 +26,10 @@ import AnimatedInputBar from '@/components/ui/AnimatedInputBar';
 import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import Dropdown from '@/components/ui/Dropdown';
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LiveDot } from '@/components/shared/LiveDot';
+import { useAuthStore } from '@/store/authStore';
 import { useTopicStore } from '@/store/topicStore';
 import { HEADER_HEIGHT } from '@/components/ui/AnimatedHeaderScrollView/conf';
 
@@ -93,9 +94,9 @@ const getDifficultyConfig = (colors: ColorTokens, t: TFunction): Record<Difficul
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const diff = getDifficultyConfig(colors, t)[arena.difficulty];
 
   return (
@@ -159,9 +160,9 @@ function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ArenasScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeDifficulty, setActiveDifficulty] = useState<Difficulty | 'all'>('all');
@@ -191,20 +192,14 @@ export default function ArenasScreen() {
     return matchesDifficulty && matchesSearch;
   });
 
+  const defaultDifficulty = useAuthStore((s) => s.user?.default_difficulty) ?? 'medium';
+
   const handleArenaPress = useCallback((arena: Arena) => {
     router.push({
-      pathname: '/arena/[id]',
-      params: {
-        id: arena.id,
-        title: arena.title,
-        description: arena.description,
-        category: arena.category,
-        difficulty: arena.difficulty,
-        participants: String(arena.participants),
-        isLive: String(arena.isLive),
-      },
+      pathname: '/debate/new',
+      params: { topic: arena.title, topicId: arena.id, difficulty: defaultDifficulty },
     });
-  }, [router]);
+  }, [router, defaultDifficulty]);
 
   const renderArena = useCallback(({ item }: { item: Arena }) => (
     <ArenaCard arena={item} onPress={() => handleArenaPress(item)} />
@@ -374,7 +369,7 @@ export default function ArenasScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -399,13 +394,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   smallHeaderTitle: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: fs(24),
     color: colors['on-surface'],
     textAlign: 'center',
   },
   smallHeaderSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
     textAlign: 'center',
   },
@@ -445,12 +440,12 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   filterTriggerText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
   },
   filterItemText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
   },
   filterItemTextActive: {
@@ -494,7 +489,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   liveText: {
     fontFamily: fonts.semibold,
-    fontSize: 10,
+    fontSize: fs(10),
     color: '#34C759',
   },
   categoryBadge: {
@@ -505,28 +500,28 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   categoryText: {
     fontFamily: fonts.medium,
-    fontSize: 10,
+    fontSize: fs(10),
     color: colors['on-surface-variant'],
   },
   timestamp: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['outline-variant'],
   },
 
   cardTitle: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: fs(17),
     letterSpacing: -0.2,
     color: colors['on-surface'],
     marginTop: spacing[3],
-    lineHeight: 24,
+    lineHeight: fs(24),
   },
   cardDescription: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
-    lineHeight: 20,
+    lineHeight: fs(20),
     marginTop: 6,
   },
 
@@ -555,7 +550,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   participantsText: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
   },
   rightActions: {
@@ -570,7 +565,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   diffText: {
     fontFamily: fonts.semibold,
-    fontSize: 10,
+    fontSize: fs(10),
   },
   joinButton: {
     backgroundColor: colors['surface-container-high'],
@@ -580,7 +575,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   joinText: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface'],
   },
 
@@ -591,7 +586,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: fs(17),
     color: colors['on-surface'],
     letterSpacing: -0.2,
   },

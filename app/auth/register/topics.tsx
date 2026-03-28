@@ -26,10 +26,10 @@ const TOPIC_KEYS = [
 ] as const;
 
 export default function RegisterTopics() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const sharedStyles = useMemo(() => createSharedStyles(colors), [colors]);
-  const styles = useMemo(() => createLocalStyles(colors), [colors]);
+  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
+  const styles = useMemo(() => createLocalStyles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { selectedTopics, toggleTopic } = useRegisterStore();
@@ -112,7 +112,7 @@ export default function RegisterTopics() {
   );
 }
 
-const createLocalStyles = (colors: ColorTokens) => StyleSheet.create({
+const createLocalStyles = (colors: ColorTokens, fs: (n: number) => number) => StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: {
     flexDirection: 'row', alignItems: 'center',
@@ -120,10 +120,10 @@ const createLocalStyles = (colors: ColorTokens) => StyleSheet.create({
     borderRadius: radius.full, backgroundColor: colors['surface-container-low'],
   },
   chipSelected: { backgroundColor: colors['on-surface'] },
-  chipText: { fontFamily: fonts.medium, fontSize: 13, color: colors['on-surface'] },
+  chipText: { fontFamily: fonts.medium, fontSize: fs(13), color: colors['on-surface'] },
   chipTextSelected: { color: colors['surface-container-lowest'] },
   hint: {
-    fontFamily: fonts.regular, fontSize: 12, color: colors['outline-variant'],
+    fontFamily: fonts.regular, fontSize: fs(12), color: colors['outline-variant'],
     textAlign: 'center', marginTop: spacing[4],
   },
 });

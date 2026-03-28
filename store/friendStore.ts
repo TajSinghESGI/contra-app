@@ -1,27 +1,38 @@
 import { create } from 'zustand';
-import type { Friend, Challenge, ChallengeStatus } from '@/services/api';
+import type { Friend, FriendRequest, Challenge, ChallengeStatus } from '@/services/api';
 import * as api from '@/services/api';
 
 interface FriendState {
   friends: Friend[];
   searchResults: Friend[];
+  friendRequests: FriendRequest[];
+  sentRequestUserIds: string[];
   challenges: Challenge[];
   isLoading: boolean;
 
   fetchFriends: () => Promise<void>;
   searchUsers: (query: string) => Promise<void>;
   clearSearch: () => void;
-  addFriend: (friend: Friend) => Promise<void>;
   removeFriend: (id: string) => Promise<void>;
+
+  // Friend requests
+  fetchFriendRequests: () => Promise<void>;
+  sendFriendRequest: (friend: Friend) => Promise<void>;
+  acceptFriendRequest: (requestId: string) => Promise<void>;
+  declineFriendRequest: (requestId: string) => Promise<void>;
+
+  // Challenges
   fetchChallenges: () => Promise<void>;
   sendChallenge: (to: Friend, topic: string, topicLabel: string, difficulty: string) => Promise<void>;
   acceptChallenge: (id: string) => Promise<void>;
   declineChallenge: (id: string) => Promise<void>;
 }
 
-export const useFriendStore = create<FriendState>((set) => ({
+export const useFriendStore = create<FriendState>((set, get) => ({
   friends: [],
   searchResults: [],
+  friendRequests: [],
+  sentRequestUserIds: [],
   challenges: [],
   isLoading: false,
 
@@ -48,21 +59,7 @@ export const useFriendStore = create<FriendState>((set) => ({
     }
   },
 
-  clearSearch: () => {
-    set({ searchResults: [] });
-  },
-
-  addFriend: async (friend: Friend) => {
-    try {
-      await api.addFriend(friend.id);
-      set((state) => ({
-        friends: [...state.friends, friend],
-        searchResults: state.searchResults.filter((u) => u.id !== friend.id),
-      }));
-    } catch (e: any) {
-      console.error('Failed to add friend:', e.message);
-    }
-  },
+  clearSearch: () => set({ searchResults: [] }),
 
   removeFriend: async (id: string) => {
     try {
@@ -72,8 +69,72 @@ export const useFriendStore = create<FriendState>((set) => ({
       }));
     } catch (e: any) {
       console.error('Failed to remove friend:', e.message);
+      throw e;
     }
   },
+
+  // ─── Friend Requests ────────────────────────────────────────────────────
+
+  fetchFriendRequests: async () => {
+    try {
+      const requests = await api.getFriendRequests();
+      const sentIds = requests
+        .filter((r) => r.direction === 'outgoing' && r.status === 'pending')
+        .map((r) => r.to.id);
+      set({ friendRequests: requests, sentRequestUserIds: sentIds });
+    } catch {
+      // silent
+    }
+  },
+
+  sendFriendRequest: async (friend: Friend) => {
+    // Optimistic: mark as sent immediately
+    set((state) => ({
+      sentRequestUserIds: [...state.sentRequestUserIds, friend.id],
+      searchResults: state.searchResults.filter((u) => u.id !== friend.id),
+    }));
+    try {
+      const request = await api.sendFriendRequest(friend.id);
+      set((state) => ({
+        friendRequests: [...state.friendRequests, request],
+      }));
+    } catch (e: any) {
+      // Rollback on error
+      set((state) => ({
+        sentRequestUserIds: state.sentRequestUserIds.filter((id) => id !== friend.id),
+      }));
+      console.error('Failed to send friend request:', e.message);
+      throw e;
+    }
+  },
+
+  acceptFriendRequest: async (requestId: string) => {
+    const request = get().friendRequests.find((r) => r.id === requestId);
+    try {
+      await api.acceptFriendRequest(requestId);
+      set((state) => ({
+        friendRequests: state.friendRequests.filter((r) => r.id !== requestId),
+        friends: request ? [...state.friends, request.from] : state.friends,
+      }));
+    } catch (e: any) {
+      console.error('Failed to accept friend request:', e.message);
+      throw e;
+    }
+  },
+
+  declineFriendRequest: async (requestId: string) => {
+    try {
+      await api.declineFriendRequest(requestId);
+      set((state) => ({
+        friendRequests: state.friendRequests.filter((r) => r.id !== requestId),
+      }));
+    } catch (e: any) {
+      console.error('Failed to decline friend request:', e.message);
+      throw e;
+    }
+  },
+
+  // ─── Challenges ─────────────────────────────────────────────────────────
 
   fetchChallenges: async () => {
     try {
@@ -92,6 +153,7 @@ export const useFriendStore = create<FriendState>((set) => ({
       }));
     } catch (e: any) {
       console.error('Failed to send challenge:', e.message);
+      throw e;
     }
   },
 
@@ -105,6 +167,7 @@ export const useFriendStore = create<FriendState>((set) => ({
       }));
     } catch (e: any) {
       console.error('Failed to accept challenge:', e.message);
+      throw e;
     }
   },
 
@@ -118,6 +181,7 @@ export const useFriendStore = create<FriendState>((set) => ({
       }));
     } catch (e: any) {
       console.error('Failed to decline challenge:', e.message);
+      throw e;
     }
   },
 }));

@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { fonts, typography, spacing, radius, SCORE_CRITERIA, type ColorTokens } from '@/constants/tokens';
+import { fonts, spacing, radius, SCORE_CRITERIA, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from 'react-i18next';
 import type { ScoreResult } from '@/store/debateStore';
@@ -27,8 +27,8 @@ export const ScoreModal = memo(function ScoreModal({
   onClose,
   onViewDetails,
 }: ScoreModalProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { t } = useTranslation();
   const ref = useRef<BottomSheetMethods>(null);
 
@@ -102,7 +102,7 @@ export const ScoreModal = memo(function ScoreModal({
   );
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   verdictSection: {
     alignItems: 'center',
     marginBottom: spacing[8],
@@ -127,7 +127,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   totalScoreSuffix: {
     fontFamily: fonts.light,
-    fontSize: 32,
+    fontSize: fs(32),
     letterSpacing: -0.5,
     color: colors['on-surface-variant'],
   },
@@ -156,7 +156,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   primaryButtonLabel: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     letterSpacing: 0.8,
     color: colors['on-primary'],
   },
@@ -167,7 +167,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ghostButtonLabel: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface-variant'],
   },
 });

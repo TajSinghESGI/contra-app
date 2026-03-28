@@ -1,5 +1,5 @@
 import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { apiLogin } from '@/services/api';
@@ -34,9 +34,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function LoginScreen() {
-  const { colors } = useTheme();
+  const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
@@ -242,7 +242,7 @@ export default function LoginScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   keyboardAvoid: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
   scrollContent: { flexGrow: 1 },
@@ -281,23 +281,23 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
 
   fieldGroup: { marginBottom: 0 },
   passwordFieldGroup: { marginTop: spacing[4] },
-  fieldLabel: { fontFamily: fonts.semibold, fontSize: 13, color: colors['on-surface'], marginBottom: spacing[2] },
+  fieldLabel: { fontFamily: fonts.semibold, fontSize: fs(13), color: colors['on-surface'], marginBottom: spacing[2] },
   passwordLabelRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: spacing[2],
   },
-  forgotPassword: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
+  forgotPassword: { fontFamily: fonts.semibold, fontSize: fs(12), color: colors.primary },
   inputWrapper: {
     backgroundColor: colors['surface-container-low'], borderRadius: radius.lg,
     flexDirection: 'row', alignItems: 'center', borderColor: 'transparent',
   },
-  input: { flex: 1, paddingHorizontal: spacing[4], paddingVertical: 14, fontFamily: fonts.regular, fontSize: 15, color: colors['on-surface'] },
+  input: { flex: 1, paddingHorizontal: spacing[4], paddingVertical: 14, fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface'] },
   passwordInput: { paddingRight: spacing[2] },
   eyeButton: { paddingHorizontal: 14, paddingVertical: 14 },
 
   fieldError: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors.error,
     marginTop: spacing[1],
   },
@@ -313,11 +313,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.5 },
   ctaGradient: { borderRadius: radius.full, height: 52, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: fonts.semibold, fontSize: 15, color: colors['on-primary'], letterSpacing: 0.5 },
+  ctaText: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-primary'], letterSpacing: 0.5 },
 
   dividerRow: { alignItems: 'center', marginVertical: spacing[5] },
   dividerText: {
-    fontFamily: fonts.semibold, fontSize: 11, color: colors['outline-variant'],
+    fontFamily: fonts.semibold, fontSize: fs(11), color: colors['outline-variant'],
     letterSpacing: 1,
   },
 
@@ -326,14 +326,14 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     flex: 1, backgroundColor: colors['surface-container-low'], borderRadius: radius.lg, height: spacing[12],
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
   },
-  googleG: { fontFamily: fonts.bold, fontSize: 15, color: '#4285F4' },
-  appleIcon: { fontSize: 16, color: colors['on-surface'] },
-  socialButtonText: { fontFamily: fonts.medium, fontSize: 14, color: colors['on-surface'] },
+  googleG: { fontFamily: fonts.bold, fontSize: fs(15), color: '#4285F4' },
+  appleIcon: { fontSize: fs(16), color: colors['on-surface'] },
+  socialButtonText: { fontFamily: fonts.medium, fontSize: fs(14), color: colors['on-surface'] },
 
   footerRow: {
     flexDirection: 'row', justifyContent: 'center',
     alignItems: 'center', marginTop: spacing[5],
   },
-  footerText: { fontFamily: fonts.regular, fontSize: 14, color: colors['on-surface-variant'] },
-  footerLink: { fontFamily: fonts.bold, fontSize: 14, color: colors['on-surface'] },
+  footerText: { fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'] },
+  footerLink: { fontFamily: fonts.bold, fontSize: fs(14), color: colors['on-surface'] },
 });

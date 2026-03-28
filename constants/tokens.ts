@@ -63,65 +63,65 @@ export const lightColors = {
 export type ColorTokens = { [K in keyof typeof lightColors]: string };
 
 export const darkColors: ColorTokens = {
-  // Surfaces — deep navy, jamais gris neutre
-  background: '#0B0F16',
-  surface: '#0B0F16',
-  'surface-bright': '#162030',
-  'surface-container-lowest': '#070A10',
-  'surface-container-low': '#111724',
-  'surface-container': '#171E2C',
-  'surface-container-high': '#1E2738',
-  'surface-container-highest': '#263244',
-  'surface-dim': '#0B0F16',
-  'surface-tint': '#8FABC4',
-  'surface-variant': '#263244',
+  // Surfaces — neutral dark gray, hiérarchie ascendante
+  background: '#181818',
+  surface: '#181818',
+  'surface-bright': '#2A2A2A',
+  'surface-container-lowest': '#1F1F1F',
+  'surface-container-low': '#262626',
+  'surface-container': '#2D2D2D',
+  'surface-container-high': '#353535',
+  'surface-container-highest': '#3D3D3D',
+  'surface-dim': '#111111',
+  'surface-tint': '#FF5722',
+  'surface-variant': '#353535',
 
-  // Primary — bleu clair sur fond sombre
-  primary: '#8FABC4',
-  'primary-dim': '#7A9AB8',
-  'primary-container': '#1A2D44',
-  'on-primary': '#0B1520',
-  'on-primary-container': '#C8DAE8',
+  // Primary — vibrant orange
+  primary: '#FF5722',
+  'primary-dim': '#E64A19',
+  'primary-container': '#3D1A0E',
+  'on-primary': '#FFFFFF',
+  'on-primary-container': '#FFCCBC',
 
-  // Secondary
-  secondary: '#9AAFBF',
-  'secondary-container': '#182C40',
-  'on-secondary': '#0B1520',
+  // Secondary — deep purple
+  secondary: '#9575CD',
+  'secondary-container': '#2A1650',
+  'on-secondary': '#FFFFFF',
 
-  // Tertiary
-  tertiary: '#A3B8CC',
-  'tertiary-container': '#1F3248',
+  // Tertiary — bright yellow
+  tertiary: '#FFEB3B',
+  'tertiary-container': '#3D3510',
 
-  // On-surfaces — blanc chaud, pas gris
-  'on-surface': '#E8EAEE',
-  'on-surface-variant': '#8895A8',
-  'on-background': '#E8EAEE',
+  // On-surfaces
+  'on-surface': '#F7F7F7',
+  'on-surface-variant': '#A0A0A0',
+  'on-background': '#F7F7F7',
 
-  // Borders — navy-teinté
-  outline: '#586578',
-  'outline-variant': '#2A3548',
+  // Borders
+  outline: '#6E6E6E',
+  'outline-variant': '#626262',
 
   // Error
-  error: '#F2918E',
+  error: '#FF6B68',
   'error-container': '#5C1A18',
   'on-error': '#2A0806',
 
   // Inverse
-  'inverse-surface': '#E2E4E6',
-  'inverse-on-surface': '#2d3336',
-  'inverse-primary': '#2B3F52',
+  'inverse-surface': '#F7F7F7',
+  'inverse-on-surface': '#181818',
+  'inverse-primary': '#E64A19',
 
-  // Dialectical accents — user vs AI
-  'accent-user': '#E88A97',
-  'accent-user-container': '#2E1C26',
-  'accent-user-dim': '#C06878',
-  'accent-ai': '#8AACC8',
-  'accent-ai-container': '#1A2C3E',
-  'accent-ai-dim': '#5E82A0',
+  // Dialectical accents — orange user vs purple AI
+  'accent-user': '#FF5722',
+  'accent-user-container': 'rgba(255,87,34,0.12)',
+  'accent-user-dim': '#E64A19',
+  'accent-ai': '#9575CD',
+  'accent-ai-container': 'rgba(103,58,183,0.12)',
+  'accent-ai-dim': '#7E57C2',
 
-  // Glassmorphism — quasi opaque pour masquer le blur gris natif
-  glass: 'rgba(11,15,22,0.96)',
-  'glass-border': 'rgba(140,170,200,0.08)',
+  // Glassmorphism
+  glass: 'rgba(24,24,24,0.92)',
+  'glass-border': 'rgba(255,87,34,0.08)',
 } as const;
 
 // Default export for static usage (light mode) — prefer useTheme() for dynamic
@@ -137,20 +137,49 @@ export const fonts = {
   bold:     'SFProRounded-Bold',
 } as const;
 
-export const typography = {
-  'display-lg': { fontFamily: fonts.light,    fontSize: 64, letterSpacing: -1.5 },
-  'display-md': { fontFamily: fonts.light,    fontSize: 48, letterSpacing: -1 },
-  'display-sm': { fontFamily: fonts.light,    fontSize: 36, letterSpacing: -0.5 },
-  'headline-lg': { fontFamily: fonts.bold,    fontSize: 32, letterSpacing: -0.5 },
-  'headline-md': { fontFamily: fonts.bold,    fontSize: 28, letterSpacing: -0.3 },
-  'headline-sm': { fontFamily: fonts.bold,    fontSize: 24, letterSpacing: -0.2 },
-  'body-lg': { fontFamily: fonts.regular,     fontSize: 18, lineHeight: 28 },
-  'body-md': { fontFamily: fonts.regular,     fontSize: 16, lineHeight: 26 },
-  'body-sm': { fontFamily: fonts.regular,     fontSize: 14, lineHeight: 22 },
-  'label-lg': { fontFamily: fonts.bold,       fontSize: 12, letterSpacing: 2,   textTransform: 'uppercase' as const },
-  'label-md': { fontFamily: fonts.bold,       fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
-  'label-sm': { fontFamily: fonts.semibold,   fontSize: 9,  letterSpacing: 1.2, textTransform: 'uppercase' as const },
-} as const;
+// ─── Font size preference ────────────────────────────────────────────────────
+
+import { createMMKV } from 'react-native-mmkv';
+
+const _fontStorage = createMMKV();
+const FONT_SIZE_KEY = 'contra_font_size';
+
+export type FontSizeOption = 'small' | 'default' | 'large';
+
+export const FONT_SIZE_OPTIONS: { id: FontSizeOption; delta: number }[] = [
+  { id: 'small',   delta: -2 },
+  { id: 'default', delta: 0 },
+  { id: 'large',   delta: 2 },
+];
+
+function getStoredDelta(): number {
+  const stored = _fontStorage.getString(FONT_SIZE_KEY) as FontSizeOption | undefined;
+  const opt = FONT_SIZE_OPTIONS.find((o) => o.id === stored);
+  return opt?.delta ?? 0;
+}
+
+function buildTypography(bodyDelta: number) {
+  return {
+    'display-lg': { fontFamily: fonts.light,    fontSize: 64, letterSpacing: -1.5 },
+    'display-md': { fontFamily: fonts.light,    fontSize: 48, letterSpacing: -1 },
+    'display-sm': { fontFamily: fonts.light,    fontSize: 36, letterSpacing: -0.5 },
+    'headline-lg': { fontFamily: fonts.bold,    fontSize: 32, letterSpacing: -0.5 },
+    'headline-md': { fontFamily: fonts.bold,    fontSize: 28, letterSpacing: -0.3 },
+    'headline-sm': { fontFamily: fonts.bold,    fontSize: 24, letterSpacing: -0.2 },
+    'body-lg': { fontFamily: fonts.regular,     fontSize: 20 + bodyDelta, lineHeight: 30 + bodyDelta },
+    'body-md': { fontFamily: fonts.regular,     fontSize: 18 + bodyDelta, lineHeight: 28 + bodyDelta },
+    'body-sm': { fontFamily: fonts.regular,     fontSize: 16 + bodyDelta, lineHeight: 24 + bodyDelta },
+    'label-lg': { fontFamily: fonts.bold,       fontSize: 12, letterSpacing: 2,   textTransform: 'uppercase' as const },
+    'label-md': { fontFamily: fonts.bold,       fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
+    'label-sm': { fontFamily: fonts.semibold,   fontSize: 9,  letterSpacing: 1.2, textTransform: 'uppercase' as const },
+  };
+}
+
+export type TypographyTokens = ReturnType<typeof buildTypography>;
+
+export const typography: TypographyTokens = buildTypography(getStoredDelta());
+
+export { buildTypography, getStoredDelta };
 
 export const spacing = {
   1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 7: 28, 8: 32,
@@ -197,7 +226,7 @@ export const PLANS = {
     id: 'trial',
     label: 'Essai gratuit',
     price: 0,
-    durationDays: 14,
+    durationDays: 7,
     requiresCreditCard: false,
     features: ['illimité', 'tous_niveaux', 'classements'] as string[],
   },
@@ -227,7 +256,7 @@ export const CONVERSION_TRIGGER = {
   triggerWindowHours: 48,
   noticeBeforeExpiryHours: 24,
   fallbackTitle: 'Ton essai Contra expire demain',
-  fallbackBody: "14 jours. Des centaines d'arguments. Continue.",
+  fallbackBody: "7 jours. Des centaines d'arguments. Continue.",
 } as const;
 
 export const PAYWALL_TRIGGERS = [

@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
-import { fonts, radius, shadows, spacing, typography, SCORE_CRITERIA, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, SCORE_CRITERIA, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useFriendStore } from '@/store/friendStore';
 
@@ -43,7 +43,8 @@ function CriteriaRow({
   delay: number;
   colors: ColorTokens;
 }) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   return (
     <View style={styles.criteriaRow}>
@@ -79,8 +80,8 @@ function CriteriaRow({
 export default function ChallengeResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const challenges = useFriendStore((s) => s.challenges);
@@ -259,7 +260,7 @@ export default function ChallengeResultScreen() {
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -298,7 +299,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   emptyText: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: fs(15),
     color: colors['on-surface-variant'],
   },
 
@@ -312,11 +313,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   verdictText: {
     fontFamily: fonts.light,
-    fontSize: 40,
+    fontSize: fs(40),
     letterSpacing: -1.5,
     color: colors['on-surface'],
     marginTop: spacing[2],
-    lineHeight: 46,
+    lineHeight: fs(46),
   },
 
   // Face-off card
@@ -345,29 +346,29 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   faceoffInitial: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: fs(22),
     color: colors['on-surface'],
   },
   faceoffName: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
     marginBottom: spacing[2],
     textAlign: 'center',
   },
   faceoffScore: {
     fontFamily: fonts.thin,
-    fontSize: 48,
+    fontSize: fs(48),
     color: colors['on-surface-variant'],
     letterSpacing: -1.5,
-    lineHeight: 54,
+    lineHeight: fs(54),
   },
   faceoffScoreWinner: {
     color: colors.primary,
   },
   faceoffOutOf: {
     fontFamily: fonts.light,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['outline-variant'],
     marginTop: -2,
   },
@@ -377,7 +378,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   faceoffVs: {
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: fs(18),
     color: colors['outline-variant'],
   },
 
@@ -410,7 +411,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   criteriaHeaderName: {
     flex: 1,
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
     textAlign: 'center',
   },
@@ -431,7 +432,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   criteriaPercentage: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface-variant'],
     letterSpacing: -0.3,
   },
@@ -460,7 +461,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     letterSpacing: 1,
     color: colors['on-primary'],
   },
@@ -473,7 +474,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   shareBtnText: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: fs(14),
     letterSpacing: 0.5,
     color: colors['on-surface-variant'],
   },

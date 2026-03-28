@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { fonts, radius, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
 import { DebateInput } from '@/components/debate/DebateInput';
@@ -33,9 +33,9 @@ interface Message {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ChallengeDebateScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, typography, fs } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -291,7 +291,7 @@ export default function ChallengeDebateScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -323,13 +323,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   headerNames: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: fs(14),
     color: colors['on-surface'],
     marginTop: 2,
   },
   headerTurn: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
   },
 
@@ -346,7 +346,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   scoreBarLabel: {
     fontFamily: fonts.medium,
-    fontSize: 11,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
     width: 60,
   },
@@ -355,7 +355,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   scoreBarValue: {
     fontFamily: fonts.bold,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors['on-surface'],
     width: 28,
     textAlign: 'right',
@@ -372,7 +372,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   turnText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: fs(13),
     color: colors['on-surface'],
   },
 
@@ -406,8 +406,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   bubbleText: {
     fontFamily: fonts.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: fs(16),
+    lineHeight: fs(24),
   },
   bubbleTextMe: {
     color: colors['on-surface'],
@@ -433,10 +433,10 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   aiCommentText: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: fs(13),
     fontStyle: 'italic',
     color: colors['on-surface-variant'],
-    lineHeight: 20,
+    lineHeight: fs(20),
   },
 
   // End area
@@ -453,7 +453,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   endBtnText: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
+    fontSize: fs(16),
     color: colors['on-primary'],
   },
 });

@@ -23,8 +23,8 @@ export default function TopBar({
   leftElement,
   transparent = false,
 }: TopBarProps) {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
   const Content = (
@@ -71,7 +71,7 @@ export default function TopBar({
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, fs: (n: number) => number) => StyleSheet.create({
   blurBase: {
     position: 'absolute',
     top: 0,
@@ -106,13 +106,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    fontSize: 18,
+    fontSize: fs(18),
     fontWeight: '800',
     letterSpacing: -0.5,
     color: colors['on-surface'],
   },
   titleText: {
-    fontSize: 16,
+    fontSize: fs(16),
     fontWeight: '600',
     letterSpacing: -0.2,
     color: colors['on-surface'],

@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
 import { reportBug } from '@/services/api';
-import { fonts, radius, shadows, spacing, typography, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -18,8 +18,8 @@ const CATEGORIES = ['Crash', 'Interface', 'Débat / IA', 'Audio', 'Compte', 'Aut
 export default function ReportBugScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [category, setCategory] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -122,7 +122,7 @@ export default function ReportBugScreen() {
   );
 }
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -133,7 +133,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors['surface-container-lowest'],
     alignItems: 'center', justifyContent: 'center', ...shadows.ambient,
   },
-  headerTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors['on-surface'], letterSpacing: -0.2 },
+  headerTitle: { fontFamily: fonts.semibold, fontSize: fs(16), color: colors['on-surface'], letterSpacing: -0.2 },
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
   sectionLabel: { ...typography['label-sm'], color: colors.outline, marginBottom: spacing[3] },
 
@@ -143,7 +143,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     backgroundColor: colors['surface-container-low'],
   },
   catPillActive: { backgroundColor: colors['on-surface'] },
-  catText: { fontFamily: fonts.medium, fontSize: 13, color: colors['on-surface'] },
+  catText: { fontFamily: fonts.medium, fontSize: fs(13), color: colors['on-surface'] },
   catTextActive: { color: colors['surface-container-lowest'] },
 
   textAreaWrapper: {
@@ -152,11 +152,11 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     marginBottom: spacing[5],
   },
   textArea: {
-    fontFamily: fonts.regular, fontSize: 15, color: colors['on-surface'],
-    lineHeight: 22, minHeight: 120,
+    fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface'],
+    lineHeight: fs(22), minHeight: 120,
   },
   charCount: {
-    fontFamily: fonts.regular, fontSize: 11,
+    fontFamily: fonts.regular, fontSize: fs(11),
     color: colors['outline-variant'], textAlign: 'right', marginTop: spacing[2],
   },
 
@@ -164,7 +164,7 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   successTitle: { ...typography['headline-sm'], color: colors['on-surface'] },
   successBody: { ...typography['body-sm'], color: colors['on-surface-variant'], textAlign: 'center' },
   backLink: { marginTop: spacing[4] },
-  backLinkText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.primary },
+  backLinkText: { fontFamily: fonts.semibold, fontSize: fs(14), color: colors.primary },
 
   ctaArea: {
     paddingHorizontal: spacing[5], paddingTop: spacing[4],
@@ -177,6 +177,6 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.5 },
   ctaGradient: { height: 52, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: fonts.semibold, fontSize: 15, color: colors['on-primary'], letterSpacing: 0.5 },
+  ctaText: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-primary'], letterSpacing: 0.5 },
 });
 
