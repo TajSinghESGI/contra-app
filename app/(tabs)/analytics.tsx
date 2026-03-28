@@ -205,8 +205,10 @@ export default function AnalyticsScreen() {
   const [debates, setDebates] = useState<DebateHistoryEntry[]>([]);
 
   useEffect(() => {
-    getUserStats().then(setStats).catch(() => {});
-    getDebateHistory().then(setDebates).catch(() => {});
+    let active = true;
+    getUserStats().then((d) => active && setStats(d)).catch(() => {});
+    getDebateHistory().then((d) => active && setDebates(d)).catch(() => {});
+    return () => { active = false; };
   }, []);
 
   const displayDebates = stats?.total_debates ?? totalDebates;

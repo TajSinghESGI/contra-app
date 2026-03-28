@@ -95,7 +95,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const res = await apiLogin(email.trim(), password);
-      await login(res.token, res.user);
+      await login(res.token, res.refresh, res.user);
       await loginUser(res.user.id);
       identify(res.user.id, { email: res.user.email, name: res.user.full_name });
       track(AnalyticsEvents.LOGIN);

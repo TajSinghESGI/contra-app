@@ -15,6 +15,7 @@ export default function AuthLayout() {
     >
       <Stack.Screen name="login" options={{ animation: 'fade' }} />
       <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="forgot-password" options={{ animation: 'slide_from_right' }} />
       {/* register/index, register/topics, register/level gérés par register/_layout.tsx */}
     </Stack>
   );

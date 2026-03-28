@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,6 +17,8 @@ import { DifficultyBadge } from '@/components/debate/DifficultyBadge';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useFriendStore } from '@/store/friendStore';
+import { useAuthStore } from '@/store/authStore';
+import { createChallengeDebate } from '@/services/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +86,8 @@ export default function ChallengeDetailScreen() {
     );
   }
 
-  const isRecipient = challenge.to.id === 'me';
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const isRecipient = challenge.to.id === currentUserId;
   const isPending = challenge.status === 'pending';
   const isAccepted = challenge.status === 'accepted';
   const isCompleted = challenge.status === 'completed';
@@ -97,8 +101,19 @@ export default function ChallengeDetailScreen() {
     router.back();
   };
 
-  const handleDebate = () => {
-    router.push(`/challenge/debate/${challenge.id}` as any);
+  const [isStartingDebate, setIsStartingDebate] = useState(false);
+
+  const handleDebate = async () => {
+    if (isStartingDebate) return;
+    setIsStartingDebate(true);
+    try {
+      const { id: debateId, topic } = await createChallengeDebate(challenge.id);
+      router.push({ pathname: '/debate/[id]', params: { id: debateId, topic } } as any);
+    } catch (e: any) {
+      console.error('Failed to create challenge debate:', e.message);
+    } finally {
+      setIsStartingDebate(false);
+    }
   };
 
   const handleViewResult = () => {

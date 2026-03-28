@@ -28,6 +28,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -142,6 +143,7 @@ export default function RootLayout() {
   }
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
     <GestureHandlerRootView style={styles.root}>
       <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
@@ -187,7 +189,6 @@ export default function RootLayout() {
             <Stack.Screen name="challenge/[id]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
             <Stack.Screen name="challenge/debate/[id]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
             <Stack.Screen name="challenge/result/[id]" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
-            <Stack.Screen name="auth/forgot-password" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -204,6 +205,7 @@ export default function RootLayout() {
       </KeyboardProvider>
     </GestureHandlerRootView>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

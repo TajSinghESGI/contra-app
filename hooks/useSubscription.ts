@@ -87,7 +87,7 @@ export function useSubscription(): UseSubscriptionReturn {
     try {
       const info = await restorePurchases();
       setCustomerInfo(info);
-      return hasProEntitlement(info);
+      return info ? hasProEntitlement(info) : false;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Restauration échouée.');
       return false;

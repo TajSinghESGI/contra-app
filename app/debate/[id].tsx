@@ -57,19 +57,31 @@ export default function DebateScreen() {
   // Fetch final score when debate is over
   useEffect(() => {
     if (!isDebateOver || !id) return;
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+
     const fetchScore = async () => {
+      if (cancelled) return;
+      attempts++;
       try {
-        // Give the backend a moment to compute the score
         await new Promise((r) => setTimeout(r, 3000));
+        if (cancelled) return;
         const result = await getDebateScore(id);
-        setFinalScore(result);
-        setShowScoreModal(true);
+        if (!cancelled) {
+          setFinalScore(result);
+          setShowScoreModal(true);
+        }
       } catch {
-        // Score not ready yet — retry after a delay
-        setTimeout(fetchScore, 3000);
+        if (!cancelled && attempts < MAX_ATTEMPTS) {
+          setTimeout(fetchScore, 3000);
+        } else if (!cancelled) {
+          setShowScoreModal(true);
+        }
       }
     };
     fetchScore();
+    return () => { cancelled = true; };
   }, [isDebateOver, id]);
 
   const handleSend = useCallback(async () => {
@@ -131,7 +143,7 @@ export default function DebateScreen() {
       <LegendList
         data={messages}
         keyExtractor={(msg) => msg.id}
-        extraData={messages.map((m) => m.content).join('')}
+        extraData={messages.length > 0 ? messages[messages.length - 1].content : ''}
         estimatedItemSize={120}
         maintainScrollAtEnd={false}
         contentContainerStyle={styles.listContent}

@@ -21,6 +21,8 @@ const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';
 
 const ENTITLEMENT_ID = 'Contra Pro';
 
+let isConfigured = false;
+
 // ─── Initialize ────────────────────────────────────────────────────────────────
 
 /**
@@ -39,12 +41,14 @@ export async function initializePurchases(userId?: string): Promise<void> {
   }
 
   Purchases.configure({ apiKey, appUserID: userId ?? undefined });
+  isConfigured = true;
 }
 
 /**
  * Link an authenticated user after login/register.
  */
-export async function loginUser(userId: string): Promise<CustomerInfo> {
+export async function loginUser(userId: string): Promise<CustomerInfo | null> {
+  if (!isConfigured) return null;
   const { customerInfo } = await Purchases.logIn(userId);
   return customerInfo;
 }
@@ -53,6 +57,7 @@ export async function loginUser(userId: string): Promise<CustomerInfo> {
  * Unlink user on logout (resets to anonymous).
  */
 export async function logoutUser(): Promise<void> {
+  if (!isConfigured) return;
   if (await Purchases.isAnonymous()) return;
   await Purchases.logOut();
 }
@@ -61,6 +66,7 @@ export async function logoutUser(): Promise<void> {
 
 /** Fetch the current offering from RevenueCat dashboard. */
 export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
+  if (!isConfigured) return null;
   const offerings = await Purchases.getOfferings();
   return offerings.current ?? null;
 }
@@ -68,20 +74,23 @@ export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
 // ─── Purchases ─────────────────────────────────────────────────────────────────
 
 /** Purchase a package. Throws on cancellation or error. */
-export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo> {
+export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
+  if (!isConfigured) return null;
   const { customerInfo } = await Purchases.purchasePackage(pkg);
   return customerInfo;
 }
 
 /** Restore previous purchases (required for App Store guidelines). */
-export async function restorePurchases(): Promise<CustomerInfo> {
+export async function restorePurchases(): Promise<CustomerInfo | null> {
+  if (!isConfigured) return null;
   return Purchases.restorePurchases();
 }
 
 // ─── Customer info ─────────────────────────────────────────────────────────────
 
 /** Get the current subscriber's entitlements. */
-export async function getCustomerInfo(): Promise<CustomerInfo> {
+export async function getCustomerInfo(): Promise<CustomerInfo | null> {
+  if (!isConfigured) return null;
   return Purchases.getCustomerInfo();
 }
 
@@ -89,6 +98,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo> {
 export function addCustomerInfoListener(
   listener: (info: CustomerInfo) => void,
 ): () => void {
+  if (!isConfigured) return () => {};
   const remove = Purchases.addCustomerInfoUpdateListener(listener);
   return remove;
 }

@@ -9,4 +9,3 @@ export {
   useAcceptChallenge,
   useDeclineChallenge,
 } from './useChallenges';
-export { useCreateDebate, useSendMessage, useDebateScore } from './useDebateActions';

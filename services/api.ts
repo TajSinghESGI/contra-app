@@ -116,6 +116,7 @@ interface RequestOptions {
 async function apiFetch<T>(
   path: string,
   options: RequestOptions = {},
+  _isRetry = false,
 ): Promise<T> {
   const { method = 'GET', body } = options;
 
@@ -134,6 +135,14 @@ async function apiFetch<T>(
     headers,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
+
+  // Auto-refresh on 401 (expired token) — retry once
+  if (response.status === 401 && !_isRetry && token) {
+    const newToken = await useAuthStore.getState().refreshAccessToken();
+    if (newToken) {
+      return apiFetch<T>(path, options, true);
+    }
+  }
 
   if (!response.ok) {
     let errorMessage = `API error ${response.status}: ${response.statusText}`;
@@ -397,7 +406,7 @@ export async function getChallenge(id: string): Promise<Challenge> {
 }
 
 export async function createChallenge(toUserId: string, topic: string, topicLabel: string, difficulty: string): Promise<Challenge> {
-  return apiFetch<Challenge>('/api/challenges/', {
+  return apiFetch<Challenge>('/api/challenges/create/', {
     method: 'POST',
     body: { to_user_id: toUserId, topic, topic_label: topicLabel, difficulty },
   });
@@ -409,6 +418,10 @@ export async function acceptChallenge(id: string): Promise<void> {
 
 export async function declineChallenge(id: string): Promise<void> {
   await apiFetch(`/api/challenges/${id}/decline/`, { method: 'PATCH' });
+}
+
+export async function createChallengeDebate(challengeId: string): Promise<{ id: string; topic: string }> {
+  return apiFetch<{ id: string; topic: string }>(`/api/challenges/${challengeId}/debate/`, { method: 'POST' });
 }
 
 // ---------------------------------------------------------------------------
@@ -487,5 +500,19 @@ export async function forgotPassword(email: string): Promise<void> {
   await apiFetch('/api/auth/forgot-password/', {
     method: 'POST',
     body: { email },
+  });
+}
+
+export async function verifyResetCode(email: string, code: string): Promise<{ reset_token: string }> {
+  return apiFetch<{ reset_token: string }>('/api/auth/verify-reset-code/', {
+    method: 'POST',
+    body: { email, code },
+  });
+}
+
+export async function resetPassword(resetToken: string, newPassword: string): Promise<void> {
+  await apiFetch('/api/auth/reset-password/', {
+    method: 'POST',
+    body: { reset_token: resetToken, new_password: newPassword },
   });
 }

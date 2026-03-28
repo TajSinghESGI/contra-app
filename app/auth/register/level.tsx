@@ -7,11 +7,12 @@ import { apiRegister, updateProfile } from '@/services/api';
 import { loginUser } from '@/services/revenuecat';
 import { track, identify } from '@/services/analytics';
 import { AnalyticsEvents } from '@/services/analyticsEvents';
+import { Toast } from '@/components/ui/Toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -42,17 +43,20 @@ export default function RegisterLevel() {
   const ctaScale = useSharedValue(1);
   const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: ctaScale.value }] }));
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleFinish = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
     try {
       const res = await apiRegister(email, password, fullName);
-      await login(res.token, res.user);
+      await login(res.token, res.refresh, res.user);
       await loginUser(res.user.id);
       identify(res.user.id, { email: res.user.email, name: res.user.full_name });
       track(AnalyticsEvents.SIGNUP_COMPLETED, {
         difficulty: selectedDifficulty,
         topicCount: selectedTopics.length,
       });
-      // Save preferences (topics + difficulty)
       await updateProfile({
         default_difficulty: selectedDifficulty,
         selected_topics: selectedTopics,
@@ -60,8 +64,21 @@ export default function RegisterLevel() {
       reset();
       router.replace('/(tabs)');
     } catch (e: any) {
-      // TODO: show error toast
-      console.error('Registration failed:', e.message);
+      const msg = e.message ?? '';
+      if (msg.includes('email') || msg.includes('existe') || msg.includes('exists') || msg.includes('unique')) {
+        Toast.show(t('auth.errors.emailExists'), {
+          type: 'error',
+          duration: 4000,
+          onPress: () => {
+            reset();
+            router.replace('/auth/login');
+          },
+        });
+      } else {
+        Toast.show(t('auth.errors.generic'), { type: 'error', duration: 3000 });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
