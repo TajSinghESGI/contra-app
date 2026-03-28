@@ -23,7 +23,7 @@ interface FriendState {
 
   // Challenges
   fetchChallenges: () => Promise<void>;
-  sendChallenge: (to: Friend, topic: string, topicLabel: string, difficulty: string) => Promise<void>;
+  sendChallenge: (to: Friend, topic: string, topicLabel: string, maxTurns: string) => Promise<void>;
   acceptChallenge: (id: string) => Promise<void>;
   declineChallenge: (id: string) => Promise<void>;
 }
@@ -145,9 +145,9 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     }
   },
 
-  sendChallenge: async (to: Friend, topic: string, topicLabel: string, difficulty: string) => {
+  sendChallenge: async (to: Friend, topic: string, topicLabel: string, maxTurns: string) => {
     try {
-      const challenge = await api.createChallenge(to.id, topic, topicLabel, difficulty);
+      const challenge = await api.createChallenge(to.id, topic, topicLabel, maxTurns);
       set((state) => ({
         challenges: [challenge, ...state.challenges],
       }));

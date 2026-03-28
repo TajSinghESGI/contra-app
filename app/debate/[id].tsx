@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  Alert,
   View,
   Text,
   TouchableOpacity,
@@ -20,8 +21,9 @@ import { UserMessage } from '@/components/debate/UserMessage';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
 import { ScoreModal } from '@/components/debate/ScoreModal';
 import { DebateInput } from '@/components/debate/DebateInput';
+import { MarqueeText } from '@/components/ui/MarqueeText';
 import { useDebate } from '@/hooks/useDebate';
-import { getDebateScore } from '@/services/api';
+import { abandonDebate, getDebateScore } from '@/services/api';
 import type { ScoreResult } from '@/store/debateStore';
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -40,13 +42,14 @@ export default function DebateScreen() {
   const {
     messages,
     isStreaming,
+    isLoading,
     currentTurn,
     maxTurns,
     topic,
     isDebateOver,
     score,
     sendMessage,
-  } = useDebate();
+  } = useDebate(id);
 
   const displayTopic = topic || topicParam;
 
@@ -102,6 +105,36 @@ export default function DebateScreen() {
     setInputText(action + '\u00a0: ');
   };
 
+  const handleAbandon = useCallback(() => {
+    Alert.alert(
+      t('debate.abandonTitle'),
+      t('debate.abandonMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('debate.abandon'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await abandonDebate(id!);
+              router.back();
+            } catch {}
+          },
+        },
+      ],
+    );
+  }, [id, t, router]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: colors['on-surface-variant'] }}>
+          {t('debate.preparing')}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View
       style={styles.root}
@@ -109,7 +142,9 @@ export default function DebateScreen() {
       {/* ── Fixed glassmorphism header ── */}
       {isDark ? (
         <View style={[styles.header, styles.headerSolid, { paddingTop: insets.top }]}>
-          <View style={{ width: 22 }} />
+          <TouchableOpacity onPress={handleAbandon} hitSlop={8}>
+            <Icon name="trash" size={20} color={colors['on-surface-variant']} />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('common.appName')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerClose} hitSlop={8}>
             <Icon name="circle-x" size={22} color={colors['on-surface']} />
@@ -117,7 +152,9 @@ export default function DebateScreen() {
         </View>
       ) : (
         <BlurView intensity={80} tint="light" style={[styles.header, { paddingTop: insets.top }]}>
-          <View style={{ width: 22 }} />
+          <TouchableOpacity onPress={handleAbandon} hitSlop={8}>
+            <Icon name="trash" size={20} color={colors['on-surface-variant']} />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('common.appName')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerClose} hitSlop={8}>
             <Icon name="circle-x" size={22} color={colors['on-surface']} />
@@ -130,7 +167,13 @@ export default function DebateScreen() {
         <View style={styles.topicRow}>
           <View style={styles.topicLeft}>
             <Text style={styles.topicLabel}>{t('debate.currentProposition')}</Text>
-            <Text style={styles.topicText} numberOfLines={1}>{displayTopic}</Text>
+            <MarqueeText
+              text={displayTopic}
+              style={styles.topicText}
+              containerStyle={styles.topicScroll}
+              speed={25}
+              pauseDuration={2500}
+            />
           </View>
           <View style={styles.turnBadge}>
             <Text style={styles.turnCounter}>{t('debate.turnShort', { current: Math.min(currentTurn, maxTurns), max: maxTurns })}</Text>
@@ -258,12 +301,14 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     ...typography['label-sm'],
     color: colors.outline,
   },
+  topicScroll: {
+    marginTop: 4,
+  },
   topicText: {
     fontFamily: fonts.light,
     fontSize: fs(18),
     letterSpacing: -0.3,
     color: colors['on-surface'],
-    marginTop: 4,
     lineHeight: fs(24),
   },
   turnBadge: {

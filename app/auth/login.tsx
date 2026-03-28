@@ -2,6 +2,7 @@ import Icon from '@/components/ui/Icon';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
+import { useTopicStore } from '@/store/topicStore';
 import { apiLogin } from '@/services/api';
 import { loginUser } from '@/services/revenuecat';
 import { track, identify } from '@/services/analytics';
@@ -100,7 +101,6 @@ export default function LoginScreen() {
       identify(res.user.id, { email: res.user.email, name: res.user.full_name });
       track(AnalyticsEvents.LOGIN);
       // Sync language preference
-      const { useTopicStore } = require('@/store/topicStore');
       useTopicStore.getState().setLang(res.user.language ?? 'fr');
       router.replace('/(tabs)');
     } catch {

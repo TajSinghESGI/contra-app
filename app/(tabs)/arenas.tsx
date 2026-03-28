@@ -69,9 +69,9 @@ function buildArenas(topics: any[]): Arena[] {
     description: topic.description,
     category: topic.category_label ?? topic.category,
     difficulty: DIFFICULTIES[i % DIFFICULTIES.length],
-    participants: topic.participant_count || 50 + ((i * 73 + 17) % 450),
-    isLive: i % 5 === 0,
-    timestamp: TIMESTAMPS[i % TIMESTAMPS.length],
+    participants: topic.participant_count ?? 0,
+    isLive: false,
+    timestamp: '',
     avatarColors: AVATAR_PALETTES[i % AVATAR_PALETTES.length],
   }));
 }
@@ -106,17 +106,10 @@ function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
     ]}>
       <View style={styles.cardTopRow}>
         <View style={styles.badgeRow}>
-          {arena.isLive && (
-            <View style={styles.liveBadge}>
-              <LiveDot />
-              <Text style={styles.liveText}>{t('common.live')}</Text>
-            </View>
-          )}
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{arena.category}</Text>
           </View>
         </View>
-        <Text style={styles.timestamp}>{arena.timestamp}</Text>
       </View>
 
       <Text style={styles.cardTitle}>{arena.title}</Text>
@@ -125,22 +118,9 @@ function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
       </Text>
 
       <View style={styles.cardBottomRow}>
-        <View style={styles.participantsRow}>
-          <View style={styles.avatarStack}>
-            {arena.avatarColors.map((bg, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.stackAvatar,
-                  { backgroundColor: bg, marginLeft: i === 0 ? 0 : -6 },
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.participantsText}>
-            {t('common.participants', { count: arena.participants })}
-          </Text>
-        </View>
+        <Text style={styles.participantsText}>
+          {arena.participants > 0 ? t('common.participants', { count: arena.participants }) : ''}
+        </Text>
 
         <View style={styles.rightActions}>
           <View style={[styles.diffBadge, { backgroundColor: diff.bg }]}>

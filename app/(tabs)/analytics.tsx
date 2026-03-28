@@ -22,8 +22,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { useProgressionStore } from '@/store/progressionStore';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
 import { AnimatedProgressBar } from '@/components/ui/Progress';
-import { getUserStats, getDebateHistory } from '@/services/api';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { getUserStats, getDebateHistory, isTrialExpired } from '@/services/api';
 import type { UserStats, DebateHistoryEntry } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
+import { Ionicons } from '@expo/vector-icons';
 
 // ─── Score ring (animated SVG arc) ───────────────────────────────────────────
 
@@ -170,9 +173,26 @@ function DebateCard({
         accessibilityRole="button"
       >
         <View style={styles.debateCardTop}>
-          <Text style={styles.debateTopic} numberOfLines={2}>
-            {debate.topic}
-          </Text>
+          {debate.type === '1v1' && debate.opponent_initial ? (
+            <View style={styles.debateAvatarCol}>
+              <UserAvatar
+                size={36}
+                initial={debate.opponent_initial}
+                avatarBg={debate.opponent_avatar_bg}
+                avatarUrl={debate.opponent_avatar_url}
+              />
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.debateTopic} numberOfLines={2}>
+              {debate.type === '1v1' && debate.opponent
+                ? `vs ${debate.opponent.split(' ')[0]}`
+                : debate.topic}
+            </Text>
+            {debate.type === '1v1' && (
+              <Text style={styles.debateSubtopic} numberOfLines={1}>{debate.topic}</Text>
+            )}
+          </View>
           <View style={[styles.debateScoreCircle, { borderColor: scoreColor }]}>
             <Text style={[styles.debateScoreValue, { color: scoreColor }]}>
               {debate.score}
@@ -180,6 +200,7 @@ function DebateCard({
           </View>
         </View>
         <Text style={styles.debateDate}>
+          {debate.type === '1v1' ? '1v1 · ' : ''}
           {new Date(debate.date).toLocaleDateString('fr-FR', {
             day: 'numeric',
             month: 'short',
@@ -200,16 +221,19 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { totalDebates, totalScore } = useProgressionStore();
+  const user = useAuthStore(s => s.user);
+  const trialExpired = isTrialExpired(user);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [debates, setDebates] = useState<DebateHistoryEntry[]>([]);
 
   useEffect(() => {
+    if (trialExpired) return;
     let active = true;
     getUserStats().then((d) => active && setStats(d)).catch(() => {});
-    getDebateHistory().then((d) => active && setDebates(d)).catch(() => {});
+    getDebateHistory().then((d) => active && setDebates(d.results)).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [trialExpired]);
 
   const displayDebates = stats?.total_debates ?? totalDebates;
   const avgScore = displayDebates > 0 ? Math.round((stats?.total_score ?? totalScore) / displayDebates) : 0;
@@ -229,72 +253,92 @@ export default function AnalyticsScreen() {
         paddingBottom: insets.bottom + 100,
       }}
     >
-      {/* ── Hero score card ── */}
-      <Animated.View
-        entering={FadeInDown.duration(600).easing(Easing.out(Easing.cubic))}
-        style={styles.heroCard}
-      >
-        <Text style={styles.heroLabel}>{t('analytics.avgScore')}</Text>
-        <View style={styles.heroContent}>
-          <ScoreRing score={avgScore} size={110} />
-          <View style={styles.heroMeta}>
-            <View style={styles.heroMetaRow}>
-              <Text style={styles.heroMetaValue}>{displayDebates}</Text>
-              <Text style={styles.heroMetaLabel}>{t('analytics.debates')}</Text>
-            </View>
-            <View style={styles.heroMetaDivider} />
-            <View style={styles.heroMetaRow}>
-              <Text style={styles.heroMetaValue}>{stats?.current_streak ?? 0}{t('streak.daysShort')}</Text>
-              <Text style={styles.heroMetaLabel}>{t('analytics.streak')}</Text>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-
-
-      {/* ── Criteria progress ── */}
-      {criteria.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('analytics.progressByCategory')}</Text>
-          <View style={styles.criteriaCard}>
-            {criteria.map((c, i) => (
-              <CriterionRow
-                key={c.label}
-                label={c.label}
-                percentage={c.percentage}
-                delay={400 + i * 100}
-              />
-            ))}
-          </View>
+      {/* ── Trial expired lock ── */}
+      {trialExpired && (
+        <View style={styles.lockedContainer}>
+          <Ionicons name="lock-closed" size={40} color={colors['outline-variant']} />
+          <Text style={styles.lockedTitle}>{t('analytics.lockedTitle')}</Text>
+          <Text style={styles.lockedBody}>{t('analytics.lockedBody')}</Text>
+          <Pressable
+            style={styles.lockedCta}
+            onPress={() => router.push('/paywall' as any)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.lockedCtaText}>{t('analytics.lockedCta')}</Text>
+          </Pressable>
         </View>
       )}
 
-      {/* ── Recent debates ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>{t('analytics.recentDebates')}</Text>
-          <Pressable
-            onPress={() => router.push('/debate/history')}
-            hitSlop={8}
-            accessibilityRole="button"
+      {/* ── Main content (hidden if trial expired) ── */}
+      {!trialExpired && (
+        <>
+          {/* ── Hero score card ── */}
+          <Animated.View
+            entering={FadeInDown.duration(600).easing(Easing.out(Easing.cubic))}
+            style={styles.heroCard}
           >
-            <Text style={styles.seeAllText}>{t('home.viewAll')}</Text>
-          </Pressable>
-        </View>
-        <View style={styles.debateList}>
-          {debates.length === 0 && (
-            <Text style={styles.emptyText}>{t('analytics.noDebates')}</Text>
+            <Text style={styles.heroLabel}>{t('analytics.avgScore')}</Text>
+            <View style={styles.heroContent}>
+              <ScoreRing score={avgScore} size={110} />
+              <View style={styles.heroMeta}>
+                <View style={styles.heroMetaRow}>
+                  <Text style={styles.heroMetaValue}>{displayDebates}</Text>
+                  <Text style={styles.heroMetaLabel}>{t('analytics.debates')}</Text>
+                </View>
+                <View style={styles.heroMetaDivider} />
+                <View style={styles.heroMetaRow}>
+                  <Text style={styles.heroMetaValue}>{stats?.current_streak ?? 0}{t('streak.daysShort')}</Text>
+                  <Text style={styles.heroMetaLabel}>{t('analytics.streak')}</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* ── Criteria progress ── */}
+          {criteria.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t('analytics.progressByCategory')}</Text>
+              <View style={styles.criteriaCard}>
+                {criteria.map((c, i) => (
+                  <CriterionRow
+                    key={c.label}
+                    label={c.label}
+                    percentage={c.percentage}
+                    delay={400 + i * 100}
+                  />
+                ))}
+              </View>
+            </View>
           )}
-          {debates.slice(0, 3).map((debate, i) => (
-            <DebateCard
-              key={debate.id}
-              debate={debate}
-              delay={600 + i * 80}
-              onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
-            />
-          ))}
-        </View>
-      </View>
+
+          {/* ── Recent debates ── */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>{t('analytics.recentDebates')}</Text>
+              <Pressable
+                onPress={() => router.push('/debate/history')}
+                hitSlop={8}
+                accessibilityRole="button"
+              >
+                <Text style={styles.seeAllText}>{t('home.viewAll')}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.debateList}>
+              {debates.length === 0 && (
+                <Text style={styles.emptyText}>{t('analytics.noDebates')}</Text>
+              )}
+              {debates.slice(0, 3).map((debate, i) => (
+                <DebateCard
+                  key={debate.id}
+                  debate={debate}
+                  delay={600 + i * 80}
+                  onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
+                />
+              ))}
+            </View>
+          </View>
+        </>
+      )}
     </AnimatedHeaderScrollView>
   );
 }
@@ -408,12 +452,20 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     justifyContent: 'space-between',
     gap: spacing[3],
   },
+  debateAvatarCol: {
+    marginRight: spacing[1],
+  },
   debateTopic: {
-    flex: 1,
     fontFamily: fonts.semibold,
     fontSize: fs(15),
     color: colors['on-surface'],
     lineHeight: fs(22),
+  },
+  debateSubtopic: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
   },
   debateScoreCircle: {
     width: 44,
@@ -441,5 +493,40 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors['on-surface-variant'],
     textAlign: 'center',
     paddingVertical: spacing[8],
+  },
+
+  // Trial-expired lock screen
+  lockedContainer: {
+    alignItems: 'center',
+    paddingHorizontal: spacing[8],
+    paddingTop: spacing[16],
+    gap: spacing[4],
+  },
+  lockedTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(20),
+    color: colors['on-surface'],
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  lockedBody: {
+    fontFamily: fonts.regular,
+    fontSize: fs(15),
+    color: colors['on-surface-variant'],
+    textAlign: 'center',
+    lineHeight: fs(22),
+  },
+  lockedCta: {
+    marginTop: spacing[2],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[8],
+    paddingVertical: spacing[3],
+  },
+  lockedCtaText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors['on-primary'],
+    letterSpacing: 0.5,
   },
 });

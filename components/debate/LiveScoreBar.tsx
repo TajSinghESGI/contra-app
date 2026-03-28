@@ -57,6 +57,7 @@ export const LiveScoreBar = memo(function LiveScoreBar({
 const createStyles = (colors: ColorTokens) => StyleSheet.create({
   container: {
     gap: spacing[1],
+    alignSelf: 'stretch',
   },
   labelRow: {
     flexDirection: 'row',
@@ -77,15 +78,15 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     color: colors['on-surface-variant'],
   },
   track: {
-    height: 2,
+    height: 4,
     backgroundColor: colors['surface-container-high'],
-    borderRadius: 1,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   fill: {
-    height: 2,
+    height: 4,
     backgroundColor: colors['accent-user'],
-    borderRadius: 1,
+    borderRadius: 2,
   },
 });
 

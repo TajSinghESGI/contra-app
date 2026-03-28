@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Share,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -19,10 +20,19 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
 import { fonts, radius, shadows, spacing, SCORE_CRITERIA, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useFriendStore } from '@/store/friendStore';
+import { useAuthStore } from '@/store/authStore';
+
+const ILLUSTRATIONS = {
+  won: require('@/assets/illustration/won.png'),
+  lost: require('@/assets/illustration/lost.png'),
+  tie: require('@/assets/illustration/tie.png'),
+} as const;
 
 // ─── Criteria helpers ─────────────────────────────────────────────────────
 
@@ -86,6 +96,7 @@ export default function ChallengeResultScreen() {
 
   const challenges = useFriendStore((s) => s.challenges);
   const challenge = challenges.find((c) => c.id === id);
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   // Animated score entrance
   const scoreOpacity = useSharedValue(0);
@@ -118,26 +129,36 @@ export default function ChallengeResultScreen() {
     );
   }
 
-  const fromScore = challenge.fromScore ?? 0;
-  const toScore = challenge.toScore ?? 0;
+  const fromScore = challenge.from_score ?? 0;
+  const toScore = challenge.to_score ?? 0;
   const fromWins = fromScore > toScore;
   const toWins = toScore > fromScore;
   const isTie = fromScore === toScore;
 
-  const isMe = (friendId: string) => friendId === 'me';
-  const iAmFrom = isMe(challenge.from.id);
+  const iAmFrom = challenge.from.id === currentUserId;
+
+  const iWon = (iAmFrom && fromWins) || (!iAmFrom && toWins);
+  const iLost = (iAmFrom && toWins) || (!iAmFrom && fromWins);
 
   let verdictText = 'Égalité';
-  if (fromWins) {
-    verdictText = iAmFrom ? 'Victoire' : 'Défaite';
-  } else if (toWins) {
-    verdictText = iAmFrom ? 'Défaite' : 'Victoire';
+  let verdictIllustration = ILLUSTRATIONS.tie;
+  let verdictColor = colors['on-surface'];
+  if (iWon) {
+    verdictText = 'Victoire';
+    verdictIllustration = ILLUSTRATIONS.won;
+    verdictColor = '#34C759';
+  } else if (iLost) {
+    verdictText = 'Défaite';
+    verdictIllustration = ILLUSTRATIONS.lost;
+    verdictColor = colors['on-surface-variant'];
   }
 
   const handleRevanche = () => {
+    // Navigate to friends screen with rematch params to open ChallengeSheet
+    const opponentId = iAmFrom ? challenge.to.id : challenge.from.id;
     router.push({
-      pathname: '/onboarding',
-      params: { topic: challenge.topic, difficulty: challenge.difficulty },
+      pathname: '/friends',
+      params: { rematchUserId: opponentId },
     } as any);
   };
 
@@ -156,7 +177,9 @@ export default function ChallengeResultScreen() {
           <Icon name="chevron-left" size={22} color={colors['on-surface']} />
         </Pressable>
         <Text style={styles.headerLabel}>RÉSULTAT DU DÉFI</Text>
-        <View style={{ width: 36 }} />
+        <Pressable onPress={handleShare} style={styles.shareHeaderBtn} hitSlop={8} accessibilityRole="button">
+          <Ionicons name="share-outline" size={18} color={colors['on-surface']} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -165,21 +188,23 @@ export default function ChallengeResultScreen() {
       >
         {/* Verdict */}
         <Animated.View style={[styles.verdictSection, animatedScoreStyle]}>
+          <Image source={verdictIllustration} style={styles.verdictIllustration} resizeMode="contain" />
           <Text style={styles.sectionLabel}>RÉSULTAT DU DÉFI</Text>
-          <Text style={styles.verdictText}>{verdictText}</Text>
+          <Text style={[styles.verdictText, { color: verdictColor }]}>
+            {verdictText}
+          </Text>
         </Animated.View>
 
         {/* Score face-off */}
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.faceoffCard}>
           {/* From column */}
           <View style={styles.faceoffColumn}>
-            <View style={styles.faceoffAvatar}>
-              <Text style={styles.faceoffInitial}>{challenge.from.initial}</Text>
-            </View>
+            <UserAvatar size={44} initial={challenge.from.initial} avatarBg={challenge.from.avatarBg} avatarUrl={challenge.from.avatarUrl} />
             <Text style={styles.faceoffName} numberOfLines={1}>{challenge.from.name.split(' ')[0]}</Text>
             <Text style={[
               styles.faceoffScore,
-              fromWins && styles.faceoffScoreWinner,
+              fromWins && { color: '#34C759' },
+              toWins && { color: colors['outline-variant'] },
             ]}>
               {fromScore}
             </Text>
@@ -193,13 +218,12 @@ export default function ChallengeResultScreen() {
 
           {/* To column */}
           <View style={styles.faceoffColumn}>
-            <View style={styles.faceoffAvatar}>
-              <Text style={styles.faceoffInitial}>{challenge.to.initial}</Text>
-            </View>
+            <UserAvatar size={44} initial={challenge.to.initial} avatarBg={challenge.to.avatarBg} avatarUrl={challenge.to.avatarUrl} />
             <Text style={styles.faceoffName} numberOfLines={1}>{challenge.to.name.split(' ')[0]}</Text>
             <Text style={[
               styles.faceoffScore,
-              toWins && styles.faceoffScoreWinner,
+              toWins && { color: '#34C759' },
+              fromWins && { color: colors['outline-variant'] },
             ]}>
               {toScore}
             </Text>
@@ -221,8 +245,8 @@ export default function ChallengeResultScreen() {
           </View>
 
           {SCORE_CRITERIA.map((criteria, index) => {
-            const fromVal = challenge.fromCriteria?.[criteria.key as keyof typeof challenge.fromCriteria] ?? 0;
-            const toVal = challenge.toCriteria?.[criteria.key as keyof typeof challenge.toCriteria] ?? 0;
+            const fromVal = (challenge.from_criteria as any)?.[criteria.key] ?? 0;
+            const toVal = (challenge.to_criteria as any)?.[criteria.key] ?? 0;
             return (
               <CriteriaRow
                 key={criteria.key}
@@ -249,8 +273,12 @@ export default function ChallengeResultScreen() {
               <Text style={styles.ctaText}>Revanche</Text>
             </LinearGradient>
           </Pressable>
-          <Pressable onPress={handleShare} style={styles.shareBtn} accessibilityRole="button">
-            <Text style={styles.shareBtnText}>Partager</Text>
+          <Pressable
+            onPress={() => router.push(`/challenge/coaching/${challenge.id}` as any)}
+            style={styles.coachingBtn}
+            accessibilityRole="button"
+          >
+            <Text style={styles.coachingBtnText}>Coaching IA</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -273,6 +301,15 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     paddingBottom: spacing[3],
   },
   backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors['surface-container-lowest'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.ambient,
+  },
+  shareHeaderBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -305,30 +342,38 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
 
   // Verdict
   verdictSection: {
-    marginBottom: spacing[5],
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
+  verdictIllustration: {
+    width: 64,
+    height: 64,
+    marginBottom: spacing[2],
   },
   sectionLabel: {
     ...typography['label-sm'],
     color: colors.outline,
   },
   verdictText: {
-    fontFamily: fonts.light,
-    fontSize: fs(40),
-    letterSpacing: -1.5,
+    fontFamily: fonts.bold,
+    fontSize: fs(26),
+    letterSpacing: -0.5,
     color: colors['on-surface'],
-    marginTop: spacing[2],
-    lineHeight: fs(46),
+    marginTop: spacing[1],
+    lineHeight: fs(32),
+    textAlign: 'center',
   },
 
   // Face-off card
   faceoffCard: {
     backgroundColor: colors['surface-container-lowest'],
     borderRadius: radius['3xl'],
-    padding: spacing[6],
+    padding: spacing[4],
+    paddingVertical: spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing[5],
+    marginBottom: spacing[3],
     ...shadows.ambient,
   },
   faceoffColumn: {
@@ -336,49 +381,45 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     alignItems: 'center',
   },
   faceoffAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors['surface-container-high'],
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[2],
+    marginBottom: spacing[1],
   },
   faceoffInitial: {
     fontFamily: fonts.bold,
-    fontSize: fs(22),
+    fontSize: fs(18),
     color: colors['on-surface'],
   },
   faceoffName: {
     fontFamily: fonts.semibold,
-    fontSize: fs(14),
+    fontSize: fs(13),
     color: colors['on-surface'],
-    marginBottom: spacing[2],
+    marginBottom: spacing[1],
     textAlign: 'center',
   },
   faceoffScore: {
-    fontFamily: fonts.thin,
-    fontSize: fs(48),
+    fontFamily: fonts.bold,
+    fontSize: fs(38),
     color: colors['on-surface-variant'],
     letterSpacing: -1.5,
-    lineHeight: fs(54),
-  },
-  faceoffScoreWinner: {
-    color: colors.primary,
+    lineHeight: fs(44),
   },
   faceoffOutOf: {
     fontFamily: fonts.light,
-    fontSize: fs(16),
+    fontSize: fs(13),
     color: colors['outline-variant'],
     marginTop: -2,
   },
   faceoffDivider: {
     paddingHorizontal: spacing[2],
-    marginTop: spacing[8],
+    marginTop: spacing[6],
   },
   faceoffVs: {
     fontFamily: fonts.bold,
-    fontSize: fs(18),
+    fontSize: fs(14),
     color: colors['outline-variant'],
   },
 
@@ -386,8 +427,8 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   criteriaCard: {
     backgroundColor: colors['surface-container-lowest'],
     borderRadius: radius['2xl'],
-    padding: spacing[5],
-    marginBottom: spacing[5],
+    padding: spacing[4],
+    marginBottom: spacing[3],
     ...shadows.ambient,
   },
   criteriaTitle: {
@@ -418,7 +459,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   criteriaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[3],
+    paddingVertical: spacing[2],
   },
   criteriaLabel: {
     ...typography['label-sm'],
@@ -428,13 +469,13 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   criteriaBarColumn: {
     flex: 1,
     gap: spacing[1],
-    alignItems: 'center',
   },
   criteriaPercentage: {
     fontFamily: fonts.semibold,
     fontSize: fs(13),
     color: colors['on-surface-variant'],
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
   criteriaPercentageHighlight: {
     color: colors.primary,
@@ -465,17 +506,19 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     letterSpacing: 1,
     color: colors['on-primary'],
   },
-  shareBtn: {
+  coachingBtn: {
     height: 52,
     borderRadius: radius.full,
-    backgroundColor: colors['surface-container-high'],
+    backgroundColor: colors['surface-container-lowest'],
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(95,94,94,0.15)',
   },
-  shareBtnText: {
+  coachingBtnText: {
     fontFamily: fonts.medium,
     fontSize: fs(14),
     letterSpacing: 0.5,
-    color: colors['on-surface-variant'],
+    color: colors.primary,
   },
 });

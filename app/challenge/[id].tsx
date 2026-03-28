@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -13,44 +13,25 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
-import { DifficultyBadge } from '@/components/debate/DifficultyBadge';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useFriendStore } from '@/store/friendStore';
 import { useAuthStore } from '@/store/authStore';
-import { createChallengeDebate } from '@/services/api';
+
+const ILLUSTRATIONS = {
+  won: require('@/assets/illustration/won.png'),
+  lost: require('@/assets/illustration/lost.png'),
+  tie: require('@/assets/illustration/tie.png'),
+} as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
+  if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-
-function AvatarColumn({
-  initial,
-  name,
-  level,
-  colors,
-}: {
-  initial: string;
-  name: string;
-  level: string;
-  colors: ColorTokens;
-}) {
-  const { typography, fs } = useTheme();
-  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
-  return (
-    <View style={styles.avatarColumn}>
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarInitial}>{initial}</Text>
-      </View>
-      <Text style={styles.avatarName} numberOfLines={1}>{name}</Text>
-      <Text style={styles.avatarLevel}>{level}</Text>
-    </View>
-  );
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -66,6 +47,7 @@ export default function ChallengeDetailScreen() {
   const challenges = useFriendStore((s) => s.challenges);
   const acceptChallenge = useFriendStore((s) => s.acceptChallenge);
   const declineChallenge = useFriendStore((s) => s.declineChallenge);
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const challenge = challenges.find((c) => c.id === id);
 
@@ -73,11 +55,9 @@ export default function ChallengeDetailScreen() {
     return (
       <View style={styles.root}>
         <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8} accessibilityRole="button">
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
             <Icon name="chevron-left" size={22} color={colors['on-surface']} />
           </Pressable>
-          <Text style={styles.headerLabel}>{t('challenge.title')}</Text>
-          <View style={{ width: 36 }} />
         </View>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>{t('challenge.notFound')}</Text>
@@ -86,45 +66,24 @@ export default function ChallengeDetailScreen() {
     );
   }
 
-  const currentUserId = useAuthStore((s) => s.user?.id);
   const isRecipient = challenge.to.id === currentUserId;
   const isPending = challenge.status === 'pending';
   const isAccepted = challenge.status === 'accepted';
   const isCompleted = challenge.status === 'completed';
+  const opponent = isRecipient ? challenge.from : challenge.to;
+  const isMyTurn = challenge.whose_turn_id === currentUserId;
+  const roundsPerPlayer = Math.floor((challenge.max_turns ?? 6) / 2);
 
-  const handleAccept = () => {
-    acceptChallenge(challenge.id);
-  };
-
-  const handleDecline = () => {
-    declineChallenge(challenge.id);
-    router.back();
-  };
-
-  const [isStartingDebate, setIsStartingDebate] = useState(false);
-
-  const handleDebate = async () => {
-    if (isStartingDebate) return;
-    setIsStartingDebate(true);
-    try {
-      const { id: debateId, topic } = await createChallengeDebate(challenge.id);
-      router.push({ pathname: '/debate/[id]', params: { id: debateId, topic } } as any);
-    } catch (e: any) {
-      console.error('Failed to create challenge debate:', e.message);
-    } finally {
-      setIsStartingDebate(false);
-    }
-  };
-
-  const handleViewResult = () => {
-    router.push(`/challenge/result/${challenge.id}` as any);
-  };
+  const handleAccept = () => acceptChallenge(challenge.id);
+  const handleDecline = () => { declineChallenge(challenge.id); router.back(); };
+  const handleDebate = () => router.push(`/challenge/debate/${challenge.id}` as any);
+  const handleViewResult = () => router.push(`/challenge/result/${challenge.id}` as any);
 
   return (
     <View style={styles.root}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8} accessibilityRole="button">
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
           <Icon name="chevron-left" size={22} color={colors['on-surface']} />
         </Pressable>
         <Text style={styles.headerLabel}>{t('challenge.title')}</Text>
@@ -135,50 +94,102 @@ export default function ChallengeDetailScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Topic & Difficulty */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.topicSection}>
-          <Text style={styles.sectionLabel}>{t('challenge.proposition')}</Text>
+        {/* ── VS Inline ── */}
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.vsInline}>
+          <UserAvatar size={44} initial={challenge.from.initial} avatarBg={challenge.from.avatarBg} avatarUrl={challenge.from.avatarUrl} />
+          <View style={styles.vsInlineCenter}>
+            <Text style={styles.vsInlineNames} numberOfLines={1}>
+              {challenge.from.name.split(' ')[0]} vs {challenge.to.name.split(' ')[0]}
+            </Text>
+            <View style={styles.metaRow}>
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillText}>
+                  {roundsPerPlayer} {roundsPerPlayer > 1 ? 'rounds' : 'round'}
+                </Text>
+              </View>
+              {isAccepted && (
+                <View style={styles.turnPill}>
+                  <Text style={styles.turnPillText}>
+                    {challenge.current_turn ?? 0}/{challenge.max_turns ?? 6}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <UserAvatar size={44} initial={challenge.to.initial} avatarBg={challenge.to.avatarBg} avatarUrl={challenge.to.avatarUrl} />
+        </Animated.View>
+
+        {/* ── Topic Card ── */}
+        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.topicCard}>
+          <Text style={styles.topicLabel}>{t('challenge.proposition')}</Text>
           <Text style={styles.topicText}>{challenge.topic}</Text>
-          <View style={styles.badgeRow}>
-            <DifficultyBadge level={challenge.difficulty as any} />
-            <Text style={styles.categoryText}>{challenge.topicLabel}</Text>
-          </View>
+          {challenge.created_at ? (
+            <Text style={styles.metaDate}>{formatDate(challenge.created_at)}</Text>
+          ) : null}
         </Animated.View>
 
-        {/* Versus Section */}
-        <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.versusCard}>
-          <AvatarColumn
-            initial={challenge.from.initial}
-            name={challenge.from.name}
-            level={challenge.from.level}
-            colors={colors}
-          />
-          <View style={styles.vsContainer}>
-            <Text style={styles.vsText}>{t('challenge.vs')}</Text>
-          </View>
-          <AvatarColumn
-            initial={challenge.to.initial}
-            name={challenge.to.name}
-            level={challenge.to.level}
-            colors={colors}
-          />
-        </Animated.View>
+        {/* ── Turn indicator (accepted) ── */}
+        {isAccepted && (
+          <Animated.View entering={FadeInDown.delay(120).duration(400)}
+            style={[styles.turnBanner, isMyTurn ? styles.turnBannerActive : styles.turnBannerWaiting]}
+          >
+            <Text style={styles.turnText}>
+              {isMyTurn
+                ? `🟢 ${t('challenge.yourTurn')}`
+                : `⏳ ${t('challenge.waitingFor', { name: opponent.name.split(' ')[0] })}`
+              }
+            </Text>
+          </Animated.View>
+        )}
 
-        {/* Action Section */}
+        {/* ── Result card (completed) ── */}
+        {isCompleted && (() => {
+          const fromS = challenge.from_score ?? 0;
+          const toS = challenge.to_score ?? 0;
+          const iAmFrom = challenge.from.id === currentUserId;
+          const iWon = (iAmFrom && fromS > toS) || (!iAmFrom && toS > fromS);
+          const iLost = (iAmFrom && toS > fromS) || (!iAmFrom && fromS > toS);
+          const illustration = iWon ? ILLUSTRATIONS.won : iLost ? ILLUSTRATIONS.lost : ILLUSTRATIONS.tie;
+          return (
+            <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.resultCard}>
+              <Image source={illustration} style={styles.resultIllustration} resizeMode="contain" />
+              <View style={styles.scoresRow}>
+                <View style={styles.scoreCol}>
+                  <Text style={styles.scoreOwner}>{challenge.from.name.split(' ')[0]}</Text>
+                  <Text style={[
+                    styles.scoreLarge,
+                    fromS > toS && styles.scoreWinner,
+                    fromS < toS && styles.scoreLoser,
+                  ]}>{challenge.from_score ?? '-'}</Text>
+                </View>
+                <Text style={styles.scoreSep}>—</Text>
+                <View style={styles.scoreCol}>
+                  <Text style={styles.scoreOwner}>{challenge.to.name.split(' ')[0]}</Text>
+                  <Text style={[
+                    styles.scoreLarge,
+                    toS > fromS && styles.scoreWinner,
+                    toS < fromS && styles.scoreLoser,
+                  ]}>{challenge.to_score ?? '-'}</Text>
+                </View>
+              </View>
+            </Animated.View>
+          );
+        })()}
+
+        {/* ── Actions ── */}
         <Animated.View entering={FadeInDown.delay(160).duration(400)}>
           {isPending && isRecipient && (
             <View style={styles.actionSection}>
-              <Pressable onPress={handleAccept} style={styles.ctaWrapper} accessibilityRole="button">
+              <Pressable onPress={handleAccept} style={styles.ctaWrapper}>
                 <LinearGradient
                   colors={[colors.primary, colors['primary-dim']]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
+                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                   style={styles.ctaGradient}
                 >
                   <Text style={styles.ctaText}>{t('challenge.accept')}</Text>
                 </LinearGradient>
               </Pressable>
-              <Pressable onPress={handleDecline} style={styles.secondaryBtn} accessibilityRole="button">
+              <Pressable onPress={handleDecline} style={styles.secondaryBtn}>
                 <Text style={styles.secondaryBtnText}>{t('challenge.decline')}</Text>
               </Pressable>
             </View>
@@ -191,78 +202,30 @@ export default function ChallengeDetailScreen() {
           )}
 
           {isAccepted && (
-            <View style={styles.actionSection}>
-              <Pressable onPress={handleDebate} style={styles.ctaWrapper} accessibilityRole="button">
-                <LinearGradient
-                  colors={[colors.primary, colors['primary-dim']]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.ctaGradient}
-                >
-                  <Text style={styles.ctaText}>{t('challenge.debateNow')}</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
+            <Pressable onPress={handleDebate} style={styles.ctaWrapper}>
+              <LinearGradient
+                colors={[colors.primary, colors['primary-dim']]}
+                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                style={styles.ctaGradient}
+              >
+                <Text style={styles.ctaText}>
+                  {isMyTurn ? t('challenge.debateNow') : t('challenge.viewResults')}
+                </Text>
+              </LinearGradient>
+            </Pressable>
           )}
 
           {isCompleted && (
-            <View style={styles.completedSection}>
-              <View style={styles.scoresRow}>
-                <View style={styles.scoreColumn}>
-                  <Text style={styles.scoreOwner}>{challenge.from.name.split(' ')[0]}</Text>
-                  <Text style={[
-                    styles.scoreLarge,
-                    (challenge.fromScore ?? 0) >= (challenge.toScore ?? 0) && styles.scoreWinner,
-                  ]}>
-                    {challenge.fromScore}
-                  </Text>
-                </View>
-                <Text style={styles.scoreSeparator}>-</Text>
-                <View style={styles.scoreColumn}>
-                  <Text style={styles.scoreOwner}>{challenge.to.name.split(' ')[0]}</Text>
-                  <Text style={[
-                    styles.scoreLarge,
-                    (challenge.toScore ?? 0) >= (challenge.fromScore ?? 0) && styles.scoreWinner,
-                  ]}>
-                    {challenge.toScore}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.verdictLabel}>
-                {(challenge.fromScore ?? 0) > (challenge.toScore ?? 0)
-                  ? t('challenge.wins', { name: challenge.from.name.split(' ')[0] })
-                  : (challenge.toScore ?? 0) > (challenge.fromScore ?? 0)
-                    ? t('challenge.wins', { name: challenge.to.name.split(' ')[0] })
-                    : t('challenge.tie')}
-              </Text>
-              <Pressable onPress={handleViewResult} style={styles.viewResultBtn} accessibilityRole="button">
-                <Text style={styles.viewResultText}>{t('challenge.viewDetail')}</Text>
-                <Icon name="chevron-right" size={14} color={colors.primary} />
-              </Pressable>
-            </View>
+            <Pressable onPress={handleViewResult} style={styles.ctaWrapper}>
+              <LinearGradient
+                colors={[colors.primary, colors['primary-dim']]}
+                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                style={styles.ctaGradient}
+              >
+                <Text style={styles.ctaText}>{t('challenge.viewDetail')}</Text>
+              </LinearGradient>
+            </Pressable>
           )}
-        </Animated.View>
-
-        {/* Info Card */}
-        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={styles.infoCard}>
-          <Text style={styles.infoLabel}>{t('challenge.info')}</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoKey}>{t('challenge.createdAt')}</Text>
-            <Text style={styles.infoValue}>{formatDate(challenge.createdAt)}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoKey}>{t('challenge.topic')}</Text>
-            <Text style={styles.infoValue}>{challenge.topicLabel}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoKey}>{t('challenge.statusLabel')}</Text>
-            <Text style={styles.infoValue}>
-              {challenge.status === 'pending' && t('challenge.statuses.pending')}
-              {challenge.status === 'accepted' && t('challenge.statuses.accepted')}
-              {challenge.status === 'declined' && t('challenge.statuses.declined')}
-              {challenge.status === 'completed' && t('challenge.statuses.completed')}
-            </Text>
-          </View>
         </Animated.View>
       </ScrollView>
     </View>
@@ -296,104 +259,124 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     ...typography['label-md'],
     color: colors.outline,
   },
-
   content: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[2],
+    gap: spacing[3],
   },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface-variant'] },
 
-  // Empty state
-  emptyContainer: {
-    flex: 1,
+  // VS inline row
+  vsInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius['2xl'],
+    padding: spacing[4],
+    gap: spacing[3],
+    ...shadows.ambient,
+  },
+  avatarSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    fontFamily: fonts.regular,
+  avatarSmallText: {
+    fontFamily: fonts.bold,
+    fontSize: fs(17),
+    color: colors['on-surface'],
+  },
+  vsInlineCenter: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  vsInlineNames: {
+    fontFamily: fonts.bold,
     fontSize: fs(15),
+    color: colors['on-surface'],
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  metaPill: {
+    backgroundColor: colors['surface-container-high'],
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[2],
+    paddingVertical: 3,
+  },
+  metaPillText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(11),
     color: colors['on-surface-variant'],
   },
-
-  // Topic section
-  topicSection: {
-    marginBottom: spacing[5],
+  turnPill: {
+    backgroundColor: 'rgba(52,199,89,0.12)',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[2],
+    paddingVertical: 3,
   },
-  sectionLabel: {
+  turnPillText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(11),
+    color: '#34C759',
+  },
+  metaDate: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['outline-variant'],
+  },
+
+  // Topic card
+  topicCard: {
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius['2xl'],
+    padding: spacing[5],
+    ...shadows.ambient,
+  },
+  topicLabel: {
     ...typography['label-sm'],
     color: colors.outline,
     marginBottom: spacing[2],
   },
   topicText: {
-    ...typography['headline-sm'],
+    fontFamily: fonts.bold,
+    fontSize: fs(20),
+    letterSpacing: -0.3,
+    lineHeight: fs(28),
     color: colors['on-surface'],
     marginBottom: spacing[3],
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  categoryText: {
-    fontFamily: fonts.regular,
-    fontSize: fs(13),
-    color: colors['on-surface-variant'],
-  },
 
-  // Versus card
-  versusCard: {
-    backgroundColor: colors['surface-container-lowest'],
-    borderRadius: radius['3xl'],
-    padding: spacing[6],
-    flexDirection: 'row',
+  // Turn banner
+  turnBanner: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing[5],
-    ...shadows.ambient,
+    paddingVertical: spacing[3],
+    borderRadius: radius.full,
   },
-  avatarColumn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing[1],
+  turnBannerActive: {
+    backgroundColor: 'rgba(52,199,89,0.1)',
   },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors['surface-container-high'],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[2],
+  turnBannerWaiting: {
+    backgroundColor: colors['surface-container-low'],
   },
-  avatarInitial: {
-    fontFamily: fonts.bold,
-    fontSize: fs(24),
-    color: colors['on-surface'],
-  },
-  avatarName: {
-    fontFamily: fonts.semibold,
+  turnText: {
+    fontFamily: fonts.medium,
     fontSize: fs(14),
     color: colors['on-surface'],
-    textAlign: 'center',
-  },
-  avatarLevel: {
-    fontFamily: fonts.regular,
-    fontSize: fs(11),
-    color: colors['on-surface-variant'],
-    textAlign: 'center',
-  },
-  vsContainer: {
-    paddingHorizontal: spacing[3],
-  },
-  vsText: {
-    fontFamily: fonts.bold,
-    fontSize: fs(20),
-    color: colors['outline-variant'],
   },
 
-  // Action buttons
+  // Actions
   actionSection: {
     gap: spacing[3],
-    marginBottom: spacing[5],
   },
   ctaWrapper: {
     borderRadius: radius.full,
@@ -410,10 +393,10 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     justifyContent: 'center',
   },
   ctaText: {
-    fontFamily: fonts.medium,
-    fontSize: fs(14),
-    letterSpacing: 1,
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
     color: colors['on-primary'],
+    letterSpacing: 0.5,
   },
   secondaryBtn: {
     height: 52,
@@ -425,15 +408,11 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   secondaryBtnText: {
     fontFamily: fonts.medium,
     fontSize: fs(14),
-    letterSpacing: 0.5,
     color: colors['on-surface-variant'],
   },
-
-  // Waiting state
   waitingSection: {
     alignItems: 'center',
-    paddingVertical: spacing[6],
-    marginBottom: spacing[5],
+    paddingVertical: spacing[5],
   },
   waitingText: {
     fontFamily: fonts.regular,
@@ -441,89 +420,50 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors['on-surface-variant'],
   },
 
-  // Completed section
-  completedSection: {
+  // Result card
+  resultCard: {
     backgroundColor: colors['surface-container-lowest'],
-    borderRadius: radius['3xl'],
-    padding: spacing[6],
+    borderRadius: radius['2xl'],
+    padding: spacing[5],
     alignItems: 'center',
-    marginBottom: spacing[5],
     ...shadows.ambient,
+  },
+  resultIllustration: {
+    width: 56,
+    height: 56,
+    marginBottom: spacing[3],
   },
   scoresRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing[5],
-    marginBottom: spacing[3],
+    gap: spacing[4],
   },
-  scoreColumn: {
+  scoreCol: {
     alignItems: 'center',
     gap: spacing[1],
   },
   scoreOwner: {
     fontFamily: fonts.semibold,
-    fontSize: fs(13),
+    fontSize: fs(12),
     color: colors['on-surface-variant'],
   },
   scoreLarge: {
-    fontFamily: fonts.thin,
-    fontSize: fs(48),
+    fontFamily: fonts.bold,
+    fontSize: fs(36),
     color: colors['on-surface-variant'],
     letterSpacing: -1.5,
   },
   scoreWinner: {
-    color: colors.primary,
+    color: '#34C759',
   },
-  scoreSeparator: {
-    fontFamily: fonts.light,
-    fontSize: fs(32),
+  scoreLoser: {
     color: colors['outline-variant'],
-    marginTop: spacing[5],
   },
-  verdictLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: fs(15),
-    color: colors['on-surface'],
-    marginBottom: spacing[4],
-  },
-  viewResultBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  viewResultText: {
-    fontFamily: fonts.semibold,
-    fontSize: fs(13),
-    color: colors.primary,
-  },
-
-  // Info card
-  infoCard: {
-    backgroundColor: colors['surface-container-lowest'],
-    borderRadius: radius['2xl'],
-    padding: spacing[5],
-    ...shadows.ambient,
-  },
-  infoLabel: {
-    ...typography['label-sm'],
-    color: colors.outline,
-    marginBottom: spacing[4],
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing[2],
-  },
-  infoKey: {
-    fontFamily: fonts.regular,
-    fontSize: fs(14),
-    color: colors['on-surface-variant'],
-  },
-  infoValue: {
-    fontFamily: fonts.medium,
-    fontSize: fs(14),
-    color: colors['on-surface'],
+  scoreSep: {
+    fontFamily: fonts.light,
+    fontSize: fs(24),
+    color: colors['outline-variant'],
+    marginTop: spacing[4],
   },
 });

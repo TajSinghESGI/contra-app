@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,10 +12,11 @@ import Animated, {
   Easing,
   FadeInDown,
 } from 'react-native-reanimated';
-import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
+import { colors as staticColors, fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import Icon from '@/components/ui/Icon';
 import { useTheme } from '@/hooks/useTheme';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { getDebateHistory } from '@/services/api';
 import type { DebateHistoryEntry } from '@/services/api';
 
@@ -49,9 +51,24 @@ function DebateCard({
         accessibilityRole="button"
       >
         <View style={styles.debateCardTop}>
-          <Text style={styles.debateTopic} numberOfLines={2}>
-            {debate.topic}
-          </Text>
+          {debate.type === '1v1' && debate.opponent_initial ? (
+            <UserAvatar
+              size={36}
+              initial={debate.opponent_initial}
+              avatarBg={debate.opponent_avatar_bg}
+              avatarUrl={debate.opponent_avatar_url}
+            />
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.debateTopic} numberOfLines={2}>
+              {debate.type === '1v1' && debate.opponent
+                ? `vs ${debate.opponent.split(' ')[0]}`
+                : debate.topic}
+            </Text>
+            {debate.type === '1v1' && (
+              <Text style={styles.debateSubtitle} numberOfLines={1}>{debate.topic}</Text>
+            )}
+          </View>
           <View style={[styles.debateScoreCircle, { borderColor: scoreColor }]}>
             <Text style={[styles.debateScoreValue, { color: scoreColor }]}>
               {debate.score}
@@ -60,6 +77,7 @@ function DebateCard({
         </View>
         <View style={styles.debateCardBottom}>
           <Text style={styles.debateDate}>
+            {debate.type === '1v1' ? '1v1 · ' : ''}
             {new Date(debate.date).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',
@@ -82,10 +100,23 @@ export default function DebateHistoryScreen() {
   const router = useRouter();
 
   const [debates, setDebates] = useState<DebateHistoryEntry[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
-  useEffect(() => {
-    getDebateHistory().then(setDebates).catch(() => {});
+  const loadPage = useCallback((cursor?: string) => {
+    setLoading(true);
+    getDebateHistory(cursor)
+      .then((page) => {
+        setDebates(prev => cursor ? [...prev, ...page.results] : page.results);
+        setNextCursor(page.next_cursor);
+        setInitialLoaded(true);
+      })
+      .catch(() => { setInitialLoaded(true); })
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadPage(); }, [loadPage]);
 
   return (
     <View style={styles.root}>
@@ -106,20 +137,32 @@ export default function DebateHistoryScreen() {
           paddingBottom: insets.bottom + 100,
         }}
       >
-      <View style={styles.list}>
-        {debates.length === 0 && (
-          <Text style={styles.emptyText}>Aucun débat terminé pour le moment.</Text>
-        )}
-        {debates.map((debate, i) => (
-          <DebateCard
-            key={debate.id}
-            debate={debate}
-            delay={i * 60}
-            onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
-          />
-        ))}
-      </View>
-    </AnimatedHeaderScrollView>
+        <View style={styles.list}>
+          {initialLoaded && debates.length === 0 && (
+            <Text style={styles.emptyText}>Aucun débat terminé pour le moment.</Text>
+          )}
+          {debates.map((debate, i) => (
+            <DebateCard
+              key={debate.id}
+              debate={debate}
+              delay={Math.min(i * 60, 400)}
+              onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
+            />
+          ))}
+          {nextCursor && (
+            <Pressable
+              style={({ pressed }) => [styles.loadMoreButton, pressed && { opacity: 0.7 }]}
+              onPress={() => loadPage(nextCursor)}
+              disabled={loading}
+              accessibilityRole="button"
+            >
+              {loading
+                ? <ActivityIndicator size="small" color={staticColors.primary} />
+                : <Text style={styles.loadMoreText}>Charger plus</Text>}
+            </Pressable>
+          )}
+        </View>
+      </AnimatedHeaderScrollView>
     </View>
   );
 }
@@ -152,15 +195,19 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   debateCardTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     gap: spacing[3],
   },
   debateTopic: {
-    flex: 1,
     fontFamily: fonts.semibold,
     fontSize: fs(15),
     color: colors['on-surface'],
     lineHeight: fs(22),
+  },
+  debateSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
   },
   debateScoreCircle: {
     width: 44,
@@ -196,5 +243,16 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors['on-surface-variant'],
     textAlign: 'center',
     paddingVertical: spacing[8],
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[4],
+    marginTop: spacing[2],
+  },
+  loadMoreText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(14),
+    color: colors.primary,
   },
 });

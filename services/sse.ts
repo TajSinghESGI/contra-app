@@ -5,6 +5,7 @@
 
 import EventSource from 'react-native-sse';
 import { useAuthStore } from '@/store/authStore';
+import { getSseToken } from '@/services/api';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.contra-app.cloud';
 
@@ -27,16 +28,22 @@ export interface SSEToken {
 export class DebateSSE {
   private eventSource: EventSource | null = null;
 
-  connect(
+  async connect(
     debateId: string,
     onToken: (token: SSEToken) => void,
     onError: (error: any) => void,
     onDone: (messageId: string, score: number) => void,
-  ): void {
+  ): Promise<void> {
     this.disconnect();
 
-    const token = useAuthStore.getState().token;
-    const url = `${BASE_URL}/api/debates/${debateId}/messages/stream/?token=${token}`;
+    let sseToken: string;
+    try {
+      sseToken = await getSseToken();
+    } catch {
+      // Fallback to JWT if token endpoint is unreachable
+      sseToken = useAuthStore.getState().token ?? '';
+    }
+    const url = `${BASE_URL}/api/debates/${debateId}/messages/stream/?token=${sseToken}`;
 
     const es = new EventSource(url, {
       headers: {
@@ -103,15 +110,20 @@ export interface ChallengeSSEEvent {
 export class ChallengeSSE {
   private eventSource: EventSource | null = null;
 
-  connect(
+  async connect(
     challengeId: string,
     onEvent: (event: ChallengeSSEEvent) => void,
     onError: (error: unknown) => void,
-  ): void {
+  ): Promise<void> {
     this.disconnect();
 
-    const token = useAuthStore.getState().token;
-    const url = `${BASE_URL}/api/challenges/${challengeId}/stream/?token=${token}`;
+    let sseToken: string;
+    try {
+      sseToken = await getSseToken();
+    } catch {
+      sseToken = useAuthStore.getState().token ?? '';
+    }
+    const url = `${BASE_URL}/api/challenges/${challengeId}/stream/?token=${sseToken}`;
 
     const es = new EventSource(url);
     this.eventSource = es;

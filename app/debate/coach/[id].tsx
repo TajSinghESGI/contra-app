@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import Icon from '@/components/ui/Icon';
@@ -30,6 +31,7 @@ function ArgumentCard({
   onUpgrade: () => void;
 }) {
   const { colors, isDark, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <Animated.View entering={FadeInDown.delay(index * 100).duration(400)}>
@@ -52,7 +54,7 @@ function ArgumentCard({
           <View style={styles.suggestionBox}>
             <View style={styles.suggestionHeader}>
               <Icon name="verified-check" size={12} color={colors.primary} />
-              <Text style={styles.suggestionLabel}>CE QUE TU AURAIS DÛ DIRE</Text>
+              <Text style={styles.suggestionLabel}>{t('coach.shouldHaveSaid')}</Text>
             </View>
             <Text style={styles.suggestionText}>{argument.suggestion}</Text>
           </View>
@@ -60,7 +62,7 @@ function ArgumentCard({
           <Pressable onPress={onUpgrade} accessibilityRole="button">
             <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.lockedOverlay}>
               <Icon name="crown" size={16} color={colors.primary} />
-              <Text style={styles.lockedText}>Débloquer avec Pro</Text>
+              <Text style={styles.lockedText}>{t('coach.unlockWithPro')}</Text>
             </BlurView>
           </Pressable>
         )}
@@ -79,6 +81,7 @@ function MissedArgumentCard({
   onUpgrade: () => void;
 }) {
   const { colors, isDark, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <Animated.View entering={FadeInDown.delay(300 + index * 80).duration(400)}>
@@ -95,7 +98,7 @@ function MissedArgumentCard({
             <Text style={styles.missedPreview} numberOfLines={2}>{argument.fullText}</Text>
             <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={styles.missedBlur}>
               <Icon name="crown" size={14} color={colors.primary} />
-              <Text style={styles.lockedText}>Voir l'argument complet</Text>
+              <Text style={styles.lockedText}>{t('coach.seeFullArgument')}</Text>
             </BlurView>
           </Pressable>
         )}

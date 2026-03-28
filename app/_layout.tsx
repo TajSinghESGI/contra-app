@@ -159,7 +159,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen
               name="debate/[id]"
-              options={{ headerShown: false, animation: 'slide_from_bottom' }}
+              options={{ headerShown: false, animation: 'fade' }}
             />
             <Stack.Screen
               name="debate/result/[id]"
@@ -177,7 +177,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding/index" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
             <Stack.Screen name="first-launch" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="auth" options={{ headerShown: false, animation: 'fade' }} />
-            <Stack.Screen name="debate/new" options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="debate/new" options={{ headerShown: false, animation: 'none' }} />
             <Stack.Screen name="debate/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen
               name="paywall/index"
@@ -189,6 +189,8 @@ export default function RootLayout() {
             <Stack.Screen name="challenge/[id]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
             <Stack.Screen name="challenge/debate/[id]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
             <Stack.Screen name="challenge/result/[id]" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+            <Stack.Screen name="challenge/coaching/[id]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="activity/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style={isDark ? 'light' : 'dark'} />

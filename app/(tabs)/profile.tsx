@@ -7,17 +7,23 @@ import { DIFFICULTY_LEVELS, FONT_SIZE_OPTIONS, fonts, radius, shadows, spacing, 
 import { useFontSizeStore } from '@/store/fontSizeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
+import { useTopicStore } from '@/store/topicStore';
 import { useProgressionStore } from '@/store/progressionStore';
 import { useStreakStore } from '@/store/streakStore';
 import { useBadgeStore, BADGES } from '@/store/badgeStore';
+import { useFriendStore } from '@/store/friendStore';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getProfile, updateProfile, reportBug } from '@/services/api';
+import { getProfile, updateProfile, uploadAvatar, reportBug, isTrialExpired, startTrial } from '@/services/api';
 import { logoutUser } from '@/services/revenuecat';
 import { queryClient } from '@/services/queryClient';
 import type { AuthUser } from '@/services/api';
+import * as ImagePicker from 'expo-image-picker';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { AnimatedAvatarPicker } from '@/components/ui/AnimatedAvatarPicker';
 import {
+  ActivityIndicator,
   Image,
   Linking,
   ScrollView,
@@ -92,7 +98,6 @@ function LanguageSheetContent({ initialLang = 'fr' }: { initialLang?: string }) 
     try {
       await updateProfile({ language: lang });
       // Update topic store language + re-fetch
-      const { useTopicStore } = require('@/store/topicStore');
       useTopicStore.getState().setLang(lang);
     } catch {}
   };
@@ -259,12 +264,19 @@ function ReportBugSheetContent() {
 
 // ─── Setting row ─────────────────────────────────────────────────────────────
 
-function SettingRow({ label, onPress }: { label: string; onPress?: () => void }) {
+function SettingRow({ label, badge, onPress }: { label: string; badge?: number; onPress?: () => void }) {
   const { colors, typography, fs } = useTheme();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   return (
     <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
-      <Text style={styles.settingLabel}>{label}</Text>
+      <View style={styles.settingLabelRow}>
+        <Text style={styles.settingLabel}>{label}</Text>
+        {badge != null && badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
+      </View>
       <Icon name="chevron-right" size={16} color={colors['outline-variant']} />
     </TouchableOpacity>
   );
@@ -283,12 +295,72 @@ export default function ProfileScreen() {
   const { totalDebates, currentLevel } = useProgressionStore();
   const unlockedIds = useBadgeStore((s) => s.unlockedIds);
   const [profile, setProfile] = useState<AuthUser | null>(null);
+  const friendRequests = useFriendStore((s) => s.friendRequests);
+  const challenges = useFriendStore((s) => s.challenges);
+  const fetchFriendRequests = useFriendStore((s) => s.fetchFriendRequests);
+  const fetchChallenges = useFriendStore((s) => s.fetchChallenges);
+
+  const pendingCount = useMemo(() => {
+    const incomingRequests = friendRequests.filter(
+      (r) => r.direction === 'incoming' && r.status === 'pending',
+    ).length;
+    const pendingChallenges = profile
+      ? challenges.filter((c) => c.to.id === profile.id && c.status === 'pending').length
+      : 0;
+    return incomingRequests + pendingChallenges;
+  }, [friendRequests, challenges, profile]);
 
   useEffect(() => {
     getProfile().then(setProfile).catch(() => {});
+    fetchFriendRequests();
+    fetchChallenges();
   }, []);
 
-  const { present } = useBottomSheet();
+  const [isUploading, setIsUploading] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+
+  const doUpload = useCallback(async (uri: string) => {
+    setIsUploading(true);
+    try {
+      const { avatar_url } = await uploadAvatar(uri);
+      setProfile((prev) => prev ? { ...prev, avatar_url } : prev);
+      const authUser = useAuthStore.getState().user;
+      if (authUser) {
+        useAuthStore.setState({ user: { ...authUser, avatar_url } });
+      }
+    } catch (e: any) {
+      console.error('Avatar upload failed:', e.message);
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
+
+  const pickFromLibrary = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      doUpload(result.assets[0].uri);
+    }
+  }, [doUpload]);
+
+  const pickFromCamera = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      doUpload(result.assets[0].uri);
+    }
+  }, [doUpload]);
+
+  const { present, dismiss } = useBottomSheet();
 
   const sheetProps = {
     snapPoints: ['70%'] as const,
@@ -386,8 +458,30 @@ export default function ProfileScreen() {
     >
       {/* ── Avatar area ── */}
       <View style={styles.avatarSection}>
-        <View style={[styles.avatarCircle, profile?.avatar_bg ? { backgroundColor: profile.avatar_bg } : {}]}>
-          <Text style={styles.avatarInitial}>{profile?.initial ?? '?'}</Text>
+        <View style={styles.avatarPressable}>
+          {isUploading ? (
+            <View style={styles.avatarPressable}>
+              <View style={[styles.avatarCircle, profile?.avatar_bg ? { backgroundColor: profile.avatar_bg } : {}, { opacity: 0.4 }]}>
+                <Text style={styles.avatarInitial}>{profile?.initial ?? '?'}</Text>
+              </View>
+              <View style={styles.avatarLoaderOverlay}>
+                <ActivityIndicator size="small" color={colors['on-primary']} />
+              </View>
+            </View>
+          ) : (
+            <Pressable onPress={() => setAvatarPickerOpen(true)}>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarCircle, profile?.avatar_bg ? { backgroundColor: profile.avatar_bg } : {}]}>
+                  <Text style={styles.avatarInitial}>{profile?.initial ?? '?'}</Text>
+                </View>
+              )}
+              <View style={styles.avatarEditBadge}>
+                <Ionicons name="camera-outline" size={14} color={colors['on-primary']} />
+              </View>
+            </Pressable>
+          )}
         </View>
         <Text style={styles.userName}>{profile?.full_name ?? t('common.loading')}</Text>
         <Text style={styles.userSubtitle}>{profile?.level ?? currentLevel.label}</Text>
@@ -407,6 +501,93 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* ── Subscription status ── */}
+      {(() => {
+        const tier = profile?.subscription_tier ?? 'free';
+        const isPro = ['pro_monthly', 'pro_annual', 'pro_lifetime', 'eloquence'].includes(tier);
+        const isFree = tier === 'free';
+        const expired = isTrialExpired(profile);
+
+        if (isPro) {
+          return (
+            <Pressable
+              style={styles.subCard}
+              onPress={() => router.push('/paywall')}
+              accessibilityRole="button"
+            >
+              <View style={styles.subCardRow}>
+                <Text style={styles.subCardBadge}>PRO</Text>
+                <Text style={styles.subCardTitle}>{t('profile.subActive')}</Text>
+              </View>
+              <Text style={styles.subCardSub}>
+                {tier === 'pro_monthly' ? t('profile.subMonthly') :
+                 tier === 'pro_annual'  ? t('profile.subAnnual')  :
+                                          t('profile.subLifetime')}
+              </Text>
+            </Pressable>
+          );
+        }
+
+        // Free tier — never used trial yet
+        if (isFree) {
+          return (
+            <Pressable
+              style={styles.subCard}
+              onPress={async () => {
+                try {
+                  const updated = await startTrial();
+                  setProfile(updated);
+                  const authUser = useAuthStore.getState().user;
+                  if (authUser) useAuthStore.setState({ user: { ...authUser, subscription_tier: 'trial', trial_expires_at: updated.trial_expires_at, has_used_trial: true } });
+                } catch {}
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.subCardTitle}>{t('profile.freeTier')}</Text>
+              <Text style={styles.subCardCta}>{t('profile.startTrial')} →</Text>
+            </Pressable>
+          );
+        }
+
+        // Expired trial
+        if (expired) {
+          return (
+            <Pressable
+              style={[styles.subCard, styles.subCardExpired]}
+              onPress={() => router.push('/paywall')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.subCardTitle}>{t('profile.trialExpired')}</Text>
+              <Text style={styles.subCardCta}>{t('profile.subUpgrade')} →</Text>
+            </Pressable>
+          );
+        }
+
+        // Active trial — show countdown
+        const expiresAt = profile?.trial_expires_at ? new Date(profile.trial_expires_at) : null;
+        const daysLeft = expiresAt
+          ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000))
+          : null;
+
+        return (
+          <Pressable
+            style={styles.subCard}
+            onPress={() => router.push('/paywall')}
+            accessibilityRole="button"
+          >
+            <View style={styles.subCardRow}>
+              <Text style={styles.subCardBadge}>{t('profile.trialBadge')}</Text>
+              <Text style={styles.subCardTitle}>
+                {daysLeft !== null
+                  ? t('profile.trialDaysLeft', { count: daysLeft })
+                  : t('profile.trialActive')}
+              </Text>
+            </View>
+            <Text style={styles.subCardCta}>{t('profile.subUpgrade')} →</Text>
+          </Pressable>
+        );
+      })()}
+
       {/* ── Settings ── */}
       <View style={styles.settingsContainer}>
         {/* COMPTE */}
@@ -414,7 +595,7 @@ export default function ProfileScreen() {
           <Text style={styles.settingSectionTitle}>{t('profile.sections.account')}</Text>
           <View style={styles.settingRows}>
             <SettingRow label={t('profile.premiumSubscription')} onPress={() => router.push('/paywall')} />
-            <SettingRow label={t('profile.friendsAndChallenges')} onPress={() => router.push('/friends')} />
+            <SettingRow label={t('profile.friendsAndChallenges')} badge={pendingCount} onPress={() => router.push('/friends')} />
             <SettingRow label={t('profile.items.notifications')} onPress={() => openSheet('notifications')} />
             <SettingRow label={t('profile.items.privacy')} onPress={() => openSheet('privacy')} />
           </View>
@@ -463,6 +644,17 @@ export default function ProfileScreen() {
       </View>
 
     </AnimatedHeaderScrollView>
+    {avatarPickerOpen && (
+      <AnimatedAvatarPicker
+        size={72}
+        initial={profile?.initial ?? '?'}
+        avatarBg={profile?.avatar_bg}
+        avatarUrl={profile?.avatar_url}
+        onPickCamera={() => { setAvatarPickerOpen(false); pickFromCamera(); }}
+        onPickLibrary={() => { setAvatarPickerOpen(false); pickFromLibrary(); }}
+        onClose={() => setAvatarPickerOpen(false)}
+      />
+    )}
     </View>
   );
 }
@@ -477,6 +669,14 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     alignItems: 'center',
     paddingBottom: spacing[6],
   },
+  avatarPressable: {
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
   avatarCircle: {
     width: 72,
     height: 72,
@@ -484,6 +684,64 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     backgroundColor: colors['surface-container-high'],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarLoaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  avatarSheetContent: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[6],
+    gap: spacing[2],
+  },
+  avatarSheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(18),
+    color: colors['on-surface'],
+    marginBottom: spacing[2],
+  },
+  avatarSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    borderRadius: radius.xl,
+    backgroundColor: colors['surface-container-low'],
+  },
+  avatarSheetIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors['surface-container-high'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSheetRowText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(15),
+    color: colors['on-surface'],
   },
   avatarInitial: {
     fontFamily: fonts.bold,
@@ -581,10 +839,30 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     paddingVertical: 14,
     ...shadows.ambient,
   },
+  settingLabelRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing[2],
+    flex: 1,
+  },
   settingLabel: {
     fontFamily: fonts.regular,
     fontSize: fs(15),
     color: colors['on-surface'],
+  },
+  badge: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  badgeText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(11),
+    color: colors['on-primary'],
   },
 
   signOutWrapper: { marginTop: spacing[8] },
@@ -700,6 +978,53 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontFamily: fonts.semibold,
     fontSize: fs(15),
     color: colors['on-primary'],
+  },
+
+  // Subscription card
+  subCard: {
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
+    marginTop: spacing[5],
+    ...shadows.ambient,
+  },
+  subCardExpired: {
+    backgroundColor: colors['error-container'],
+  },
+  subCardRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing[2],
+    marginBottom: 4,
+  },
+  subCardBadge: {
+    fontFamily: fonts.bold,
+    fontSize: fs(10),
+    letterSpacing: 1,
+    color: colors['on-primary'],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[2],
+    paddingVertical: 3,
+    overflow: 'hidden' as const,
+  },
+  subCardTitle: {
+    fontFamily: fonts.medium,
+    fontSize: fs(15),
+    color: colors['on-surface'],
+  },
+  subCardSub: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
+  },
+  subCardCta: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(13),
+    color: colors.primary,
+    marginTop: 4,
   },
 
   // About

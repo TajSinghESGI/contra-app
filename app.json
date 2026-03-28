@@ -13,7 +13,12 @@
         "usesNonExemptEncryption": false
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.tajsingh.contraapp"
+      "bundleIdentifier": "com.tajsingh.contraapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Contra utilise la caméra pour prendre une photo de profil.",
+        "NSPhotoLibraryUsageDescription": "Contra accède à ta galerie pour choisir une photo de profil.",
+        "NSMicrophoneUsageDescription": "Contra utilise le micro pour les fonctionnalités audio."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +28,16 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.tajsingh.contraapp"
+      "package": "com.tajsingh.contraapp",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "com.android.vending.BILLING"
+      ]
     },
     "web": {
       "output": "static",
@@ -46,7 +60,14 @@
       ],
       "expo-localization",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Contra accède à ta galerie pour choisir une photo de profil.",
+          "cameraPermission": "Contra utilise la caméra pour prendre une photo de profil."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

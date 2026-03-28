@@ -52,16 +52,39 @@ export interface AuthUser {
   full_name: string;
   initial: string;
   avatar_bg: string;
+  avatar_url: string;
   level: string;
   total_score: number;
   total_debates: number;
   current_streak: number;
   longest_streak: number;
   subscription_tier: string;
+  trial_expires_at: string | null;
+  has_used_trial: boolean;
   default_difficulty: string;
   selected_topics: string[];
   language: string;
   badges?: { badge_id: string; level: number; unlocked_at: string }[];
+}
+
+/** Returns true if the user has no active access (free tier or expired trial). */
+export function isTrialExpired(user: AuthUser | null): boolean {
+  if (!user) return false;
+  // Free tier = same restrictions as expired trial
+  if (user.subscription_tier === 'free') return true;
+  if (user.subscription_tier !== 'trial') return false;
+  if (!user.trial_expires_at) return false;
+  return new Date(user.trial_expires_at) < new Date();
+}
+
+/** Returns true if the user has an active subscription or an active trial. */
+export function hasActiveAccess(user: AuthUser | null): boolean {
+  if (!user) return false;
+  return !isTrialExpired(user);
+}
+
+export async function startTrial(): Promise<AuthUser> {
+  return apiFetch<AuthUser>('/api/auth/start-trial/', { method: 'POST' });
 }
 
 interface AuthResponse {
@@ -104,6 +127,35 @@ export async function updateProfile(data: Partial<{
   });
 }
 
+export async function uploadAvatar(uri: string): Promise<{ avatar_url: string }> {
+  const token = getAuthToken();
+  const formData = new FormData();
+  const filename = uri.split('/').pop() ?? 'avatar.jpg';
+  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpeg';
+  const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+  formData.append('avatar', {
+    uri,
+    name: filename,
+    type: mimeType,
+  } as any);
+
+  const response = await fetch(`${BASE_URL}/api/auth/avatar/`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upload failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 // ---------------------------------------------------------------------------
 // Generic fetch helper
 // ---------------------------------------------------------------------------
@@ -117,6 +169,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestOptions = {},
   _isRetry = false,
+  _retryCount = 0,
 ): Promise<T> {
   const { method = 'GET', body } = options;
 
@@ -140,8 +193,14 @@ async function apiFetch<T>(
   if (response.status === 401 && !_isRetry && token) {
     const newToken = await useAuthStore.getState().refreshAccessToken();
     if (newToken) {
-      return apiFetch<T>(path, options, true);
+      return apiFetch<T>(path, options, true, _retryCount);
     }
+  }
+
+  // Retry transient server errors with exponential backoff (1s, 2s, 4s)
+  if ([502, 503, 504].includes(response.status) && _retryCount < 3) {
+    await new Promise(res => setTimeout(res, Math.pow(2, _retryCount) * 1000));
+    return apiFetch<T>(path, options, _isRetry, _retryCount + 1);
   }
 
   if (!response.ok) {
@@ -153,6 +212,11 @@ async function apiFetch<T>(
       // Ignore JSON parse errors on error responses
     }
     throw new Error(errorMessage);
+  }
+
+  // 204 No Content — no body to parse
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;
@@ -235,11 +299,73 @@ export interface DebateHistoryEntry {
   score: number;
   difficulty: string;
   date: string;
-  result: 'win' | 'loss';
+  result: 'win' | 'loss' | 'tie';
+  type?: 'solo' | '1v1';
+  opponent?: string;
+  opponent_avatar_url?: string;
+  opponent_avatar_bg?: string;
+  opponent_initial?: string;
 }
 
-export async function getDebateHistory(): Promise<DebateHistoryEntry[]> {
-  return apiFetch<DebateHistoryEntry[]>('/api/debates/history/');
+export interface DebateHistoryPage {
+  results: DebateHistoryEntry[];
+  next_cursor: string | null;
+}
+
+export async function getDebateHistory(cursor?: string): Promise<DebateHistoryPage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  return apiFetch<DebateHistoryPage>(`/api/debates/history/${query}`);
+}
+
+export interface ActiveDebate {
+  id: string;
+  topic_id: string | null;
+  topic: string;
+  difficulty: string;
+  current_turn: number;
+  max_turns: number;
+  started_at: string;
+}
+
+export async function getActiveDebates(): Promise<ActiveDebate[]> {
+  return apiFetch<ActiveDebate[]>('/api/debates/active/');
+}
+
+export async function abandonDebate(debateId: string): Promise<void> {
+  await apiFetch(`/api/debates/${debateId}/abandon/`, { method: 'POST' });
+}
+
+export interface DebateDetailMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  turn_number: number;
+  score: number | null;
+  created_at: string;
+}
+
+export interface DebateDetail {
+  id: string;
+  topic_id: string | null;
+  topic_text: string;
+  difficulty: string;
+  current_turn: number;
+  max_turns: number;
+  is_over: boolean;
+  score_logic: number | null;
+  score_rhetoric: number | null;
+  score_evidence: number | null;
+  score_originality: number | null;
+  score_total: number | null;
+  verdict: string;
+  analysis: string;
+  started_at: string;
+  ended_at: string | null;
+  messages: DebateDetailMessage[];
+}
+
+export async function getDebate(debateId: string): Promise<DebateDetail> {
+  return apiFetch<DebateDetail>(`/api/debates/${debateId}/`);
 }
 
 export interface UserStats {
@@ -316,6 +442,7 @@ export interface Friend {
   name: string;
   initial: string;
   avatarBg: string;
+  avatarUrl: string;
   level: string;
   score: number;
 }
@@ -387,14 +514,17 @@ export interface Challenge {
   from: Friend;
   to: Friend;
   topic: string;
-  topicLabel: string;
+  topic_label: string;
   difficulty: string;
   status: ChallengeStatus;
-  fromScore?: number;
-  toScore?: number;
-  fromCriteria?: ChallengeCriteria;
-  toCriteria?: ChallengeCriteria;
-  createdAt: string;
+  current_turn: number;
+  max_turns: number;
+  whose_turn_id: string | null;
+  from_score?: number;
+  to_score?: number;
+  from_criteria?: ChallengeCriteria;
+  to_criteria?: ChallengeCriteria;
+  created_at: string;
 }
 
 export async function getChallenges(): Promise<Challenge[]> {
@@ -405,10 +535,10 @@ export async function getChallenge(id: string): Promise<Challenge> {
   return apiFetch<Challenge>(`/api/challenges/${id}/`);
 }
 
-export async function createChallenge(toUserId: string, topic: string, topicLabel: string, difficulty: string): Promise<Challenge> {
+export async function createChallenge(toUserId: string, topic: string, topicLabel: string, maxTurns: string | number = 6): Promise<Challenge> {
   return apiFetch<Challenge>('/api/challenges/create/', {
     method: 'POST',
-    body: { to_user_id: toUserId, topic, topic_label: topicLabel, difficulty },
+    body: { to_user_id: toUserId, topic, topic_label: topicLabel, max_turns: Number(maxTurns) },
   });
 }
 
@@ -424,6 +554,46 @@ export async function createChallengeDebate(challengeId: string): Promise<{ id: 
   return apiFetch<{ id: string; topic: string }>(`/api/challenges/${challengeId}/debate/`, { method: 'POST' });
 }
 
+export interface ChallengeMessageData {
+  id: string;
+  user: Friend;
+  content: string;
+  turn_number: number;
+  created_at: string;
+}
+
+export interface ChallengeDetail extends Challenge {
+  current_turn: number;
+  max_turns: number;
+  whose_turn_id: string | null;
+  messages: ChallengeMessageData[];
+}
+
+export async function getChallengeDetail(challengeId: string): Promise<ChallengeDetail> {
+  return apiFetch<ChallengeDetail>(`/api/challenges/${challengeId}/`);
+}
+
+export async function sendChallengeMessage(challengeId: string, content: string): Promise<ChallengeMessageData> {
+  return apiFetch<ChallengeMessageData>(`/api/challenges/${challengeId}/messages/`, {
+    method: 'POST',
+    body: { content },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Challenge coaching
+// ---------------------------------------------------------------------------
+
+export interface ChallengeCoaching {
+  strengths: string[];
+  improvements: string[];
+  tip: string;
+}
+
+export async function getChallengeCoaching(challengeId: string): Promise<ChallengeCoaching> {
+  return apiFetch<ChallengeCoaching>(`/api/challenges/${challengeId}/coaching/`);
+}
+
 // ---------------------------------------------------------------------------
 // Activity feed
 // ---------------------------------------------------------------------------
@@ -432,6 +602,7 @@ export interface ActivityEntry {
   id: string;
   initial: string;
   bg: string;
+  avatarUrl?: string;
   name: string;
   snippet: string;
   time: string;
@@ -458,6 +629,7 @@ export interface PublicProfile {
     name: string;
     initial: string;
     avatarBg: string;
+    avatarUrl?: string;
     title: string;
     score: number;
     rank: number;
@@ -479,6 +651,16 @@ export async function reportBug(description: string): Promise<void> {
     method: 'POST',
     body: { description },
   });
+}
+
+// ---------------------------------------------------------------------------
+// SSE token
+// ---------------------------------------------------------------------------
+
+/** Get a single-use SSE token (30s TTL) to pass as ?token= in stream URLs. */
+export async function getSseToken(): Promise<string> {
+  const { token } = await apiFetch<{ token: string }>('/api/auth/sse-token/');
+  return token;
 }
 
 // ---------------------------------------------------------------------------

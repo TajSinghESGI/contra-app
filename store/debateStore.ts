@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { DebateDetail } from '@/services/api';
 
 // Re-export DIFFICULTY_LEVELS from tokens for convenience
 export { DIFFICULTY_LEVELS, SCORE_CRITERIA } from '@/constants/tokens';
@@ -45,6 +46,7 @@ export interface DebateState {
     topic: string,
     difficulty: DifficultyLevel,
   ) => void;
+  loadDebate: (data: DebateDetail) => void;
   addMessage: (message: DebateMessage) => void;
   updateStreamingContent: (content: string) => void;
   finalizeStreamingMessage: (messageId: string, score?: number) => void;
@@ -56,6 +58,7 @@ export interface DebateState {
 const initialState: Omit<
   DebateState,
   | 'setDebate'
+  | 'loadDebate'
   | 'addMessage'
   | 'updateStreamingContent'
   | 'finalizeStreamingMessage'
@@ -98,6 +101,38 @@ export const useDebateStore = create<DebateState>()((set) => ({
           timestamp: new Date(),
         },
       ],
+    }),
+
+  loadDebate: (data: DebateDetail) =>
+    set({
+      debateId: data.id,
+      topicId: data.topic_id,
+      topic: data.topic_text,
+      difficulty: data.difficulty as DifficultyLevel,
+      currentTurn: data.current_turn,
+      maxTurns: data.max_turns,
+      isDebateOver: data.is_over,
+      isStreaming: false,
+      streamingContent: '',
+      score: data.score_total != null
+        ? {
+            topic: data.topic_text,
+            logic: data.score_logic ?? 0,
+            rhetoric: data.score_rhetoric ?? 0,
+            evidence: data.score_evidence ?? 0,
+            originality: data.score_originality ?? 0,
+            total: data.score_total,
+            verdict: data.verdict,
+            analysis: data.analysis,
+          }
+        : null,
+      messages: data.messages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        score: m.score ?? undefined,
+        timestamp: new Date(m.created_at),
+      })),
     }),
 
   addMessage: (message: DebateMessage) =>

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { sendMessage as apiSendMessage } from '@/services/api';
+import { sendMessage as apiSendMessage, getDebate } from '@/services/api';
 import { DebateSSE } from '@/services/sse';
 import { useDebateStore } from '@/store/debateStore';
 import type { DebateMessage, DifficultyLevel, ScoreResult } from '@/store/debateStore';
@@ -12,6 +12,7 @@ import type { DebateMessage, DifficultyLevel, ScoreResult } from '@/store/debate
 export interface UseDebateReturn {
   messages: DebateMessage[];
   isStreaming: boolean;
+  isLoading: boolean;
   currentTurn: number;
   maxTurns: number;
   topic: string;
@@ -25,7 +26,7 @@ export interface UseDebateReturn {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useDebate(): UseDebateReturn {
+export function useDebate(routeDebateId?: string): UseDebateReturn {
   const {
     debateId,
     topic,
@@ -36,11 +37,44 @@ export function useDebate(): UseDebateReturn {
     maxTurns,
     isDebateOver,
     score,
+    loadDebate,
     addMessage,
     updateStreamingContent,
     finalizeStreamingMessage,
     endDebate,
   } = useDebateStore();
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-fetch debate from API if route ID doesn't match store
+  useEffect(() => {
+    if (!routeDebateId || routeDebateId === debateId) return;
+    let cancelled = false;
+    setIsLoading(true);
+    getDebate(routeDebateId)
+      .then((data) => {
+        if (!cancelled) {
+          loadDebate(data);
+          // If the loaded debate has no messages (freshly created), add intro
+          if (data.messages.length === 0) {
+            const { addMessage } = useDebateStore.getState();
+            addMessage({
+              id: 'ai-intro',
+              role: 'ai',
+              content: `Le sujet est : « ${data.topic_text} ».\n\nVeuillez prendre position — pour ou contre — et défendez votre point de vue. Je prendrai automatiquement le camp opposé. Que le débat commence.`,
+              timestamp: new Date(),
+            });
+          }
+          setIsLoading(false);
+        }
+      })
+      .catch((e) => {
+        console.error('[useDebate] Failed to load debate:', e.message);
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeDebateId]);
 
   // One SSE instance per hook lifetime — recreated on each send
   const sseRef = useRef<DebateSSE>(new DebateSSE());
@@ -128,6 +162,7 @@ export function useDebate(): UseDebateReturn {
   return {
     messages,
     isStreaming,
+    isLoading,
     currentTurn,
     maxTurns,
     topic,

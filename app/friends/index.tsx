@@ -7,12 +7,14 @@ import { TOPICS, CATEGORIES } from '@/constants/topics';
 import { useTheme } from '@/hooks/useTheme';
 import type { Challenge, Friend, FriendRequest } from '@/services/api';
 import { MorphingChips } from '@/components/ui/MorphingChips';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useFriendStore } from '@/store/friendStore';
+import { isTrialExpired } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LegendList } from '@legendapp/list';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,11 +35,11 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
   const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
-  const [sheetStep, setSheetStep] = useState<'category' | 'topic' | 'difficulty'>('category');
+  const [sheetStep, setSheetStep] = useState<'category' | 'topic' | 'rounds'>('category');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<{ question: string; label: string } | null>(null);
   const [customTopic, setCustomTopic] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
+  const [selectedRounds, setSelectedRounds] = useState<number>(6); // 3 per player
 
   const resolvedTopic = customTopic.trim()
     ? { question: customTopic.trim(), label: t('onboarding.customTopicValue') }
@@ -64,10 +66,10 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
             placeholder={t('friends.ownTopic')}
             placeholderTextColor={colors['outline-variant']}
             returnKeyType="go"
-            onSubmitEditing={() => { if (customTopic.trim()) setSheetStep('difficulty'); }}
+            onSubmitEditing={() => { if (customTopic.trim()) setSheetStep('rounds'); }}
           />
           {!!customTopic.trim() && (
-            <Pressable style={styles.sheetCustomBtn} onPress={() => setSheetStep('difficulty')}>
+            <Pressable style={styles.sheetCustomBtn} onPress={() => setSheetStep('rounds')}>
               <Icon name="arrow-right" size={14} color={colors['on-primary']} />
             </Pressable>
           )}
@@ -114,7 +116,7 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setCustomTopic('');
                 setSelectedTopic({ question: t.question, label: t.label });
-                setSheetStep('difficulty');
+                setSheetStep('rounds');
               }}
               style={styles.sheetTopicCard}
             >
@@ -130,14 +132,20 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
     );
   }
 
-  // ── Step 3: Difficulty ──
+  // ── Step 3: Rounds ──
+  const ROUND_OPTIONS = [
+    { value: 6, label: '3' },
+    { value: 10, label: '5' },
+    { value: 14, label: '7' },
+  ];
+
   return (
     <View style={styles.sheetContent}>
       <Pressable onPress={() => setSheetStep(selectedCategory ? 'topic' : 'category')} style={styles.sheetBackRow}>
         <Icon name="chevron-left" size={18} color={colors['on-surface']} />
         <Text style={styles.sheetBackText}>{t('common.back')}</Text>
       </Pressable>
-      <Text style={styles.sheetTitle}>{t('friends.difficultyTitle')}</Text>
+      <Text style={styles.sheetTitle}>{t('challenge.roundsLabel')}</Text>
 
       <View style={styles.sheetTopicRecap}>
         <Text style={styles.sheetTopicRecapLabel}>{t('friends.topicLabel')}</Text>
@@ -145,15 +153,17 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
       </View>
 
       <View style={styles.sheetDiffRow}>
-        {DIFFICULTY_LEVELS.map((l) => {
-          const isActive = selectedDifficulty === l.id;
+        {ROUND_OPTIONS.map((opt) => {
+          const isActive = selectedRounds === opt.value;
           return (
             <Pressable
-              key={l.id}
-              onPress={() => setSelectedDifficulty(l.id)}
+              key={opt.value}
+              onPress={() => setSelectedRounds(opt.value)}
               style={[styles.sheetDiffPill, isActive && styles.sheetDiffPillActive]}
             >
-              <Text style={[styles.sheetDiffText, isActive && styles.sheetDiffTextActive]}>{l.label}</Text>
+              <Text style={[styles.sheetDiffText, isActive && styles.sheetDiffTextActive]}>
+                {t('challenge.roundsPerPlayer', { count: opt.label })}
+              </Text>
             </Pressable>
           );
         })}
@@ -161,7 +171,7 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
 
       <TouchableOpacity
         style={[styles.sheetCta, !resolvedTopic && { opacity: 0.4 }]}
-        onPress={() => { if (resolvedTopic) onSend(resolvedTopic.question, resolvedTopic.label, selectedDifficulty); }}
+        onPress={() => { if (resolvedTopic) onSend(resolvedTopic.question, resolvedTopic.label, String(selectedRounds)); }}
         activeOpacity={0.8}
         disabled={!resolvedTopic}
       >
@@ -178,6 +188,13 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+function getScoreColor(score: number) {
+  'worklet';
+  if (score >= 75) return '#34C759';
+  if (score >= 50) return '#FF9500';
+  return '#FF3B30';
+}
+
 function FriendRow({
   friend,
   onChallenge,
@@ -186,20 +203,25 @@ function FriendRow({
   onChallenge: (friend: Friend) => void;
 }) {
   const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+  const scoreColor = friend.score > 0 ? getScoreColor(friend.score) : colors['outline-variant'];
 
   return (
     <View style={styles.row}>
-      <View style={[styles.avatar, { backgroundColor: friend.avatarBg }]}>
-        <Text style={styles.avatarInitial}>{friend.initial}</Text>
-      </View>
+      <UserAvatar size={44} initial={friend.initial} avatarBg={friend.avatarBg} avatarUrl={friend.avatarUrl} />
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{friend.name}</Text>
         <Text style={styles.rowLevel}>{friend.level}</Text>
       </View>
-      <Text style={styles.rowScore}>{friend.score.toLocaleString('fr-FR')}</Text>
+      {friend.score > 0 && (
+        <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
+          <Text style={[styles.scoreCircleText, { color: scoreColor }]}>{friend.score}</Text>
+        </View>
+      )}
       <Pressable style={styles.challengeButton} onPress={() => onChallenge(friend)}>
-        <Ionicons name="mail-outline" size={16} color={colors['on-primary']} />
+        <Ionicons name="flash-outline" size={14} color={colors['on-primary']} />
+        <Text style={styles.challengeButtonLabel}>{t('friends.challenge')}</Text>
       </Pressable>
     </View>
   );
@@ -222,9 +244,7 @@ function SearchResultRow({
 
   return (
     <View style={styles.row}>
-      <View style={[styles.avatar, { backgroundColor: friend.avatarBg }]}>
-        <Text style={styles.avatarInitial}>{friend.initial}</Text>
-      </View>
+      <UserAvatar size={44} initial={friend.initial} avatarBg={friend.avatarBg} avatarUrl={friend.avatarUrl} />
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{friend.name}</Text>
         <Text style={styles.rowLevel}>{friend.level}</Text>
@@ -367,9 +387,7 @@ function ChallengeRow({
   return (
     <Pressable style={styles.row} onPress={() => onPress(challenge)}>
       <View style={styles.challengeIconWrap}>
-        <View style={[styles.avatar, { backgroundColor: opponent.avatarBg }]}>
-          <Text style={styles.avatarInitial}>{opponent.initial}</Text>
-        </View>
+        <UserAvatar size={44} initial={opponent.initial} avatarBg={opponent.avatarBg} avatarUrl={opponent.avatarUrl} />
         <View style={styles.mailIconBadge}>
           <Ionicons name={mailIcon} size={14} color={colors['on-surface']} />
         </View>
@@ -379,11 +397,13 @@ function ChallengeRow({
           {isSent ? `\u2192 ${opponent.name}` : opponent.name}
         </Text>
         <Text style={styles.challengeTopic} numberOfLines={1}>
-          {challenge.topicLabel}
+          {challenge.topic_label}
         </Text>
       </View>
       <View style={styles.challengeMeta}>
-        <DifficultyBadge difficulty={challenge.difficulty} />
+        <View style={styles.roundsPill}>
+          <Text style={styles.roundsPillText}>{Math.floor((challenge.max_turns ?? 6) / 2)}R</Text>
+        </View>
         <StatusBadge status={challenge.status} />
       </View>
     </Pressable>
@@ -396,6 +416,7 @@ type TabKey = 'friends' | 'requests' | 'challenges';
 
 export default function FriendsScreen() {
   const router = useRouter();
+  const { rematchUserId } = useLocalSearchParams<{ rematchUserId?: string }>();
   const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
@@ -452,7 +473,13 @@ export default function FriendsScreen() {
   const { present, dismiss } = useBottomSheet();
   const sendChallengeAction = useFriendStore((s) => s.sendChallenge);
 
+  const user = useAuthStore((s) => s.user);
+
   const handleChallenge = useCallback((friend: Friend) => {
+    if (isTrialExpired(user)) {
+      router.push('/paywall' as any);
+      return;
+    }
     present(
       <BottomSheet
         snapPoints={['75%']}
@@ -478,6 +505,18 @@ export default function FriendsScreen() {
       </BottomSheet>
     );
   }, [present, dismiss, colors, sendChallengeAction, t]);
+
+  // Auto-open ChallengeSheet for rematch
+  const rematchHandled = useRef(false);
+  useEffect(() => {
+    if (!rematchUserId || rematchHandled.current) return;
+    // Wait for friends to load, then open the sheet
+    const friend = friends.find((f) => f.id === rematchUserId);
+    if (friend) {
+      rematchHandled.current = true;
+      handleChallenge(friend);
+    }
+  }, [rematchUserId, friends, handleChallenge]);
 
   const handleChallengePress = useCallback((challenge: Challenge) => {
     router.push({ pathname: '/challenge/[id]', params: { id: challenge.id } });
@@ -802,24 +841,24 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
       alignItems: 'center',
       gap: spacing[3],
       backgroundColor: colors['surface-container-lowest'],
-      borderRadius: radius.xl,
+      borderRadius: radius['2xl'],
       paddingHorizontal: spacing[4],
       paddingVertical: spacing[3],
-      marginBottom: spacing[2],
+      marginBottom: spacing[3],
       ...shadows.ambient,
     },
 
     // Avatar
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarInitial: {
       fontFamily: fonts.bold,
-      fontSize: fs(15),
+      fontSize: fs(17),
       color: colors['on-surface'],
     },
 
@@ -845,12 +884,35 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
       color: colors['on-surface'],
     },
 
+    // Score circle
+    scoreCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scoreCircleText: {
+      fontFamily: fonts.bold,
+      fontSize: fs(12),
+    },
+
     // Challenge button
     challengeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[1],
       backgroundColor: colors.primary,
       borderRadius: radius.full,
       paddingHorizontal: spacing[3],
-      paddingVertical: 6,
+      paddingVertical: 7,
+    },
+    challengeButtonLabel: {
+      fontFamily: fonts.semibold,
+      fontSize: fs(11),
+      color: colors['on-primary'],
+      letterSpacing: 0.3,
     },
     challengeButtonText: {
       fontFamily: fonts.semibold,
@@ -887,6 +949,17 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing[1],
+    },
+    roundsPill: {
+      backgroundColor: colors['surface-container-high'],
+      borderRadius: radius.full,
+      paddingHorizontal: spacing[2],
+      paddingVertical: 3,
+    },
+    roundsPillText: {
+      fontFamily: fonts.semibold,
+      fontSize: fs(10),
+      color: colors['on-surface-variant'],
     },
 
     // Difficulty badge

@@ -149,10 +149,11 @@ export default function UserProfileScreen() {
     id: userId ?? `user-${name}`,
     name,
     initial,
-    avatarBg: colors['surface-container-high'],
+    avatarBg: profileData?.user.avatarBg ?? colors['surface-container-high'],
+    avatarUrl: profileData?.user.avatarUrl ?? '',
     level: title,
     score,
-  }), [userId, name, initial, title, score, colors]);
+  }), [userId, name, initial, title, score, colors, profileData]);
 
   const handleChallengeSend = useCallback((topic: string, label: string, diff: string) => {
     sendChallenge(friendData, topic, label, diff);

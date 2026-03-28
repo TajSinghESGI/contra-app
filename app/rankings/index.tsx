@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { SpectralWave } from '@/components/shared/SpectralWave';
-import { getGlobalRankings, getFriendsRankings, type RankingEntry as APIRankingEntry } from '@/services/api';
+import { getGlobalRankings, getFriendsRankings, isTrialExpired, type RankingEntry as APIRankingEntry } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -188,6 +188,9 @@ export default function RankingsScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('global');
   const [selectedPeriod, setSelectedPeriod] = useState('week');
 
+  const user = useAuthStore((s) => s.user);
+  const trialExpired = isTrialExpired(user);
+
   const [globalRankings, setGlobalRankings] = useState<RankingEntry[]>([]);
   const [friendsRankings, setFriendsRankings] = useState<RankingEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -267,46 +270,61 @@ export default function RankingsScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {isLoading ? (
-          <ShimmerGroup isLoading>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Shimmer
-                key={i}
-                style={{
-                  height: 52,
-                  borderRadius: 12,
-                  marginHorizontal: spacing[5],
-                  marginBottom: spacing[2],
-                }}
+      {trialExpired ? (
+        <View style={styles.lockedContainer}>
+          <Ionicons name="lock-closed" size={40} color={colors['outline-variant']} />
+          <Text style={styles.lockedTitle}>{t('rankings.lockedTitle')}</Text>
+          <Text style={styles.lockedBody}>{t('rankings.lockedBody')}</Text>
+          <Pressable
+            style={styles.lockedCta}
+            onPress={() => router.push('/paywall' as any)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.lockedCtaText}>{t('rankings.lockedCta')}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {isLoading ? (
+            <ShimmerGroup isLoading>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Shimmer
+                  key={i}
+                  style={{
+                    height: 52,
+                    borderRadius: 12,
+                    marginHorizontal: spacing[5],
+                    marginBottom: spacing[2],
+                  }}
+                />
+              ))}
+            </ShimmerGroup>
+          ) : (
+            data.map((entry: RankingEntry) => (
+              <RankingRow
+                key={entry.id}
+                entry={entry}
+                onPress={() => router.push({
+                  pathname: '/user/[id]',
+                  params: {
+                    id: entry.id,
+                    name: entry.name,
+                    score: String(entry.score),
+                    rank: String(entry.rank),
+                    title: entry.title,
+                    initial: entry.initial,
+                  },
+                })}
               />
-            ))}
-          </ShimmerGroup>
-        ) : (
-          data.map((entry: RankingEntry) => (
-            <RankingRow
-              key={entry.id}
-              entry={entry}
-              onPress={() => router.push({
-                pathname: '/user/[id]',
-                params: {
-                  id: entry.id,
-                  name: entry.name,
-                  score: String(entry.score),
-                  rank: String(entry.rank),
-                  title: entry.title,
-                  initial: entry.initial,
-                },
-              })}
-            />
-          ))
-        )}
-        <View style={{ height: 90 }} />
-      </ScrollView>
+            ))
+          )}
+          <View style={{ height: 90 }} />
+        </ScrollView>
+      )}
 
       <View style={styles.stickyBar}>
         <Text style={styles.stickyBarText}>
@@ -535,6 +553,42 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   boostCtaText: {
     fontFamily: fonts.semibold,
     fontSize: fs(13),
+    color: colors['on-primary'],
+    letterSpacing: 0.5,
+  },
+
+  // Trial-expired lock screen
+  lockedContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[8],
+    gap: spacing[4],
+  },
+  lockedTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(20),
+    color: colors['on-surface'],
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  lockedBody: {
+    fontFamily: fonts.regular,
+    fontSize: fs(15),
+    color: colors['on-surface-variant'],
+    textAlign: 'center',
+    lineHeight: fs(22),
+  },
+  lockedCta: {
+    marginTop: spacing[2],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[8],
+    paddingVertical: spacing[3],
+  },
+  lockedCtaText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
     color: colors['on-primary'],
     letterSpacing: 0.5,
   },
