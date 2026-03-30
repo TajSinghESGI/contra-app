@@ -2,7 +2,7 @@
 
 > Ce fichier est lu automatiquement par Claude Code à chaque session.
 > Ne pas modifier sans mettre à jour les sections concernées.
-> Dernière mise à jour : 2026-03-20
+> Dernière mise à jour : 2026-03-29
 
 ---
 
@@ -30,11 +30,13 @@
 │   │   ├── _layout.tsx           # Tab bar (MorphicTabBar custom)
 │   │   ├── index.tsx             # Home / Feed (Topic du jour + Trending)
 │   │   ├── arenas.tsx            # Liste des arènes / sujets actifs + filtre + recherche
+│   │   ├── friends.tsx           # Onglet amis
 │   │   ├── analytics.tsx         # Stats personnelles
 │   │   └── profile.tsx           # Profil utilisateur + settings + logout
 │   ├── auth/
 │   │   ├── _layout.tsx           # Stack auth (animation fade)
 │   │   ├── login.tsx             # Connexion email/password
+│   │   ├── forgot-password.tsx   # Reset mot de passe
 │   │   └── register/
 │   │       ├── _layout.tsx       # Stack register (animation slide_from_right)
 │   │       ├── index.tsx         # Étape 1 : compte (nom, email, password)
@@ -43,9 +45,42 @@
 │   │       └── level.tsx         # Étape 3 : difficulté par défaut
 │   ├── debate/
 │   │   ├── [id].tsx              # Écran de débat actif (chat SSE + score bar)
-│   │   └── result/[id].tsx       # Résultats & analyse post-débat
+│   │   ├── new.tsx               # Création d'un nouveau débat
+│   │   ├── history.tsx           # Historique des débats
+│   │   ├── result/[id].tsx       # Résultats & analyse post-débat
+│   │   ├── analysis/[id].tsx     # Analyse détaillée
+│   │   ├── coach/[id].tsx        # Coaching IA post-débat
+│   │   └── replay/[id].tsx       # Replay d'un débat
+│   ├── challenge/                # Défis 1v1 entre amis
+│   │   ├── [id].tsx              # Détail d'un challenge
+│   │   ├── coaching/[id].tsx     # Coaching IA post-challenge
+│   │   ├── debate/[id].tsx       # Chat du challenge en cours
+│   │   └── result/[id].tsx       # Résultats du challenge
 │   ├── rankings/
 │   │   └── index.tsx             # Classements global / amis
+│   ├── friends/
+│   │   └── index.tsx             # Liste d'amis + recherche + challenge
+│   ├── user/
+│   │   └── [id].tsx              # Profil public d'un autre utilisateur
+│   ├── arena/
+│   │   └── [id].tsx              # Détail d'une arène
+│   ├── activity/
+│   │   └── index.tsx             # Feed d'activité des amis
+│   ├── settings/
+│   │   ├── _layout.tsx
+│   │   ├── about.tsx             # À propos
+│   │   ├── faq.tsx               # FAQ
+│   │   ├── notifications.tsx     # Préférences de notifications
+│   │   ├── difficulty.tsx        # Difficulté par défaut
+│   │   ├── edit-profile.tsx      # Modifier le profil
+│   │   └── report-bug.tsx        # Signaler un bug
+│   ├── paywall/
+│   │   └── index.tsx             # Paywall IAP (RevenueCat)
+│   ├── first-launch/
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx             # Onboarding première ouverture
+│   │   ├── demo.tsx              # Démo interactive
+│   │   └── font-size.tsx         # Choix taille de police
 │   └── onboarding/
 │       └── index.tsx             # Sélection sujet + difficulté avant débat
 ├── components/
@@ -54,41 +89,90 @@
 │   │   ├── Card.tsx
 │   │   ├── Input.tsx
 │   │   ├── Typography.tsx
-│   │   └── Icon.tsx              # Icônes fontello via createIconSet (46 glyphs)
+│   │   ├── Icon.tsx              # Icônes fontello via createIconSet (46 glyphs)
+│   │   ├── UserAvatar.tsx        # Avatar utilisateur (image ou initiale)
+│   │   ├── MarqueeText.tsx       # Texte défilant
+│   │   ├── MorphingChips.tsx     # Chips animés
+│   │   ├── AnimatedAvatarPicker.tsx
+│   │   ├── Accordion/            # Accordéon animé
+│   │   ├── AnimatedHeaderScrollView/ # Header scroll animé (large → small title)
+│   │   ├── AnimatedInputBar/     # Barre d'input animée
+│   │   ├── AnimatedScrollProgress/ # Indicateur de progression scroll
+│   │   ├── AnimatedThemeToggle/  # Toggle thème clair/sombre
+│   │   ├── AppleIntelligence/    # Composants style Apple Intelligence
+│   │   ├── BottomSheet/          # Bottom sheet modal
+│   │   ├── BottomSheetStack/     # Stack de bottom sheets
+│   │   ├── Dropdown/             # Menu déroulant
+│   │   ├── Progress/             # Barres de progression
+│   │   ├── Shimmer/              # Placeholder loading
+│   │   └── Toast/                # Notifications toast
 │   ├── debate/                   # Composants spécifiques au débat
 │   │   ├── AIMessage.tsx
 │   │   ├── UserMessage.tsx
+│   │   ├── DebateInput.tsx
 │   │   ├── TypingDots.tsx
 │   │   ├── LiveScoreBar.tsx
 │   │   ├── DifficultyBadge.tsx
 │   │   └── ScoreModal.tsx
+│   ├── auth/
+│   │   └── TopicsBottomSheet.tsx  # Sélection thématiques (register)
 │   └── shared/
 │       ├── MorphicTabBar/        # Tab bar custom (Skia morphing + Reanimated v4)
+│       ├── SpectralWave/         # Animation vague spectrale
 │       ├── BottomNav.tsx
-│       └── TopBar.tsx
+│       ├── TopBar.tsx
+│       ├── LiveDot.tsx
+│       └── ErrorBoundary.tsx
 ├── constants/
-│   └── tokens.ts                 # ★ Design tokens — source de vérité absolue
-│                                 #   exports: colors, fonts, typography, spacing,
-│                                 #            radius, shadows, DIFFICULTY_LEVELS,
-│                                 #            SCORE_CRITERIA, PLANS, CONVERSION_TRIGGER
+│   ├── tokens.ts                 # ★ Design tokens — source de vérité absolue
+│   │                             #   exports: colors, fonts, typography, spacing,
+│   │                             #            radius, shadows, DIFFICULTY_LEVELS,
+│   │                             #            SCORE_CRITERIA, PLANS, CONVERSION_TRIGGER
+│   ├── theme.ts                  # Thème clair/sombre (couleurs dynamiques)
+│   └── topics.ts                 # Catégories & topics i18n (labels via i18next)
 ├── store/
 │   ├── authStore.ts              # Zustand — isAuthenticated, token, login(), logout()
-│   ├── registerStore.ts          # Zustand — état multi-step register (fullName, email,
-│   │                             #           password, selectedTopics, selectedDifficulty)
-│   └── debateStore.ts            # Zustand — état global du débat en cours
+│   │                             #   + hydrate() syncs i18n language from profile
+│   ├── registerStore.ts          # Zustand — état multi-step register
+│   ├── debateStore.ts            # Zustand — état global du débat en cours
+│   ├── topicStore.ts             # Zustand — catégories, topics, langue active
+│   ├── friendStore.ts            # Zustand — liste d'amis
+│   ├── streakStore.ts            # Zustand — streak courante + hydratation
+│   ├── badgeStore.ts             # Zustand — badges débloqués
+│   ├── progressionStore.ts       # Zustand — progression / niveaux
+│   ├── bannerStore.ts            # Zustand — bannières promotionnelles
+│   ├── themeStore.ts             # Zustand — thème clair/sombre
+│   ├── fontSizeStore.ts          # Zustand — taille de police utilisateur
+│   └── onboardingStore.ts        # Zustand — état du first-launch
 ├── hooks/
 │   ├── useDebate.ts              # Logique SSE + état du débat
 │   ├── useScore.ts               # Calcul et animation du score
-│   └── useSubscription.ts        # RevenueCat
+│   ├── useSubscription.ts        # RevenueCat
+│   ├── useTheme.ts               # Hook thème (couleurs, typographie, font size)
+│   ├── useNotifications.ts       # Gestion push notifications (Expo)
+│   ├── use-theme-color.ts        # Couleur selon thème actif
+│   ├── use-color-scheme.ts       # Détection scheme système
+│   └── queries/                  # React Query hooks (cache + revalidation)
+│       ├── index.ts
+│       ├── useChallenges.ts
+│       ├── useFriends.ts
+│       ├── useProfile.ts
+│       ├── useRankings.ts
+│       └── useTopics.ts
 ├── services/
 │   ├── api.ts                    # Calls REST vers Django
 │   ├── sse.ts                    # EventSource wrapper pour le streaming
-│   └── revenuecat.ts             # IAP
+│   ├── revenuecat.ts             # IAP
+│   ├── analytics.ts              # Tracking analytics
+│   ├── analyticsEvents.ts        # Définition des événements
+│   ├── notifications.ts          # Service push notifications
+│   └── queryClient.ts            # Config React Query
 ├── i18n/
-│   ├── index.ts                  # Config i18next
+│   ├── index.ts                  # Config i18next (détection locale + fallback FR)
 │   └── locales/
 │       ├── fr.ts                 # Français (langue principale)
 │       └── en.ts                 # Anglais
+│       #   ↳ inclut topicCategories, topicLabels, topicQuestions
 ├── assets/
 │   ├── images/
 │   │   └── logo-contra.png       # Logo Contra (double-bulle, fond transparent)
@@ -235,7 +319,7 @@ import { shadows } from '@/constants/tokens';
 
 ### Navigation principale (Bottom Tab Bar)
 ```
-[ Feed/Home ]  [ Arenas ]  [ Analytics ]  [ Profile ]
+[ Feed/Home ]  [ Arenas ]  [ Friends ]  [ Analytics ]  [ Profile ]
 ```
 Tab bar custom `MorphicTabBar` avec glassmorphism. L'écran de débat (`debate/[id]`) n'a **pas** de bottom nav.
 
@@ -459,19 +543,50 @@ import { AIMessage } from './AIMessage';
 
 ---
 
-## 9. Backend Django — Endpoints clés
+## 9. Internationalisation (i18n)
+
+### Frontend (React Native)
+- **i18next** avec `react-i18next` — config dans `i18n/index.ts`
+- Détection automatique de la locale device via `expo-localization`, fallback `fr`
+- Fichiers de traduction : `i18n/locales/fr.ts` et `en.ts`
+- Inclut `topicCategories`, `topicLabels`, `topicQuestions` pour les topics/catégories
+- `constants/topics.ts` utilise des getters dynamiques → `CATEGORIES[i].label` et `TOPICS[i].label`/`.question` retournent la traduction active
+- `authStore.hydrate()` synchronise i18n avec la langue du profil backend au démarrage
+- Changement de langue dans profil : `i18n.changeLanguage()` + `updateProfile({ language })` + `topicStore.setLang()`
+
+### Backend (Django)
+- Module centralisé `core/i18n.py` avec `T(key, lang)`, `get_lang(request)`, `criteria_map(lang)`
+- Toutes les API acceptent `?lang=fr|en` en query param, sinon utilisent `user.language`
+- Contenu traduit : critères de score, niveaux utilisateur, badges, push notifications, feed d'activité, messages d'erreur, temps relatif
+- Topics/catégories : champs `label` (FR) + `label_en` (EN) en base, sérialisés selon la langue
+
+---
+
+## 10. Backend Django — Endpoints clés
 
 ```
 POST   /api/auth/register/
 POST   /api/auth/login/
-GET    /api/topics/
+GET    /api/auth/profile/               # profil authentifié
+PATCH  /api/auth/profile/               # update profil (pseudo, language, difficulty…)
+POST   /api/auth/start-trial/           # activer essai gratuit
+GET    /api/topics/                      # ?lang=fr|en &category=tech
+GET    /api/topics/categories/           # ?lang=fr|en
 POST   /api/debates/
 GET    /api/debates/{id}/
 POST   /api/debates/{id}/messages/       # déclenche SSE stream
 GET    /api/debates/{id}/messages/stream/ # SSE endpoint
 GET    /api/debates/{id}/score/
+POST   /api/debates/{id}/abandon/
 GET    /api/rankings/global/
 GET    /api/rankings/friends/
+GET    /api/users/{id}/profile/          # profil public (strengths, debates, rank)
+GET    /api/friends/                     # liste d'amis
+POST   /api/friends/request/             # demande d'ami
+POST   /api/challenges/                  # créer un défi 1v1
+GET    /api/challenges/{id}/             # détail challenge
+POST   /api/challenges/{id}/messages/    # envoyer un argument
+GET    /api/activity/                    # feed d'activité amis
 POST   /api/subscriptions/webhook/       # RevenueCat
 ```
 
@@ -483,7 +598,7 @@ data: {"type": "done",   "message_id": "uuid", "score": 72}
 
 ---
 
-## 10. Variables d'environnement
+## 11. Variables d'environnement
 
 ```bash
 # .env (ne jamais commiter)
@@ -495,7 +610,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/xxx
 
 ---
 
-## 11. Commandes fréquentes
+## 12. Commandes fréquentes
 
 ```bash
 # Dev
@@ -524,7 +639,7 @@ npx maestro test flows/debate_flow.yaml
 
 ---
 
-## 12. Ce qu'il NE faut PAS faire
+## 13. Ce qu'il NE faut PAS faire
 
 - ❌ Couleurs hex hardcodées (`'#2d3336'`) — utiliser `colors['on-surface']`
 - ❌ `fontWeight: '700'` sans `fontFamily` — utiliser `fonts.bold`
@@ -538,3 +653,5 @@ npx maestro test flows/debate_flow.yaml
 - ❌ Appels API directs dans les composants — passer par hooks/services
 - ❌ Bottom nav sur l'écran de débat actif
 - ❌ `runOnJS` dans Reanimated v4 — les callbacks JS s'exécutent nativement
+- ❌ Strings user-facing hardcodées en FR dans le backend — utiliser `core/i18n.T(key, lang)`
+- ❌ Labels de catégories/topics hardcodés côté frontend — passer par `i18n/locales/*.ts`

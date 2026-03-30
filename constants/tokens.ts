@@ -1,41 +1,41 @@
 export const lightColors = {
-  // Surfaces
-  background: '#f9f9fa',
-  surface: '#f9f9fa',
-  'surface-bright': '#f9f9fa',
+  // Surfaces (subtle warm-green tint)
+  background: '#F8F9F7',
+  surface: '#F8F9F7',
+  'surface-bright': '#F8F9F7',
   'surface-container-lowest': '#ffffff',
-  'surface-container-low': '#f2f4f5',
-  'surface-container': '#ebeef0',
-  'surface-container-high': '#e4e9ec',
-  'surface-container-highest': '#dde3e7',
-  'surface-dim': '#d3dbdf',
-  'surface-tint': '#2B3F52',
-  'surface-variant': '#dde3e7',
+  'surface-container-low': '#F1F3F0',
+  'surface-container': '#EAEDE9',
+  'surface-container-high': '#E3E8E2',
+  'surface-container-highest': '#DCE2DB',
+  'surface-dim': '#D2D9D1',
+  'surface-tint': '#1B211A',
+  'surface-variant': '#DCE2DB',
 
-  // Primary
-  primary: '#2B3F52',
-  'primary-dim': '#1F3042',
-  'primary-container': '#dfe5ea',
-  'on-primary': '#f5f8fa',
-  'on-primary-container': '#2B3F52',
+  // Primary (dark olive green)
+  primary: '#1B211A',
+  'primary-dim': '#131812',
+  'primary-container': '#DCE3DB',
+  'on-primary': '#F5F7F4',
+  'on-primary-container': '#1B211A',
 
   // Secondary
-  secondary: '#364B60',
-  'secondary-container': '#dde4eb',
-  'on-secondary': '#f5f8fa',
+  secondary: '#2E3A2C',
+  'secondary-container': '#DBE3D9',
+  'on-secondary': '#F5F7F4',
 
   // Tertiary
-  tertiary: '#3D5268',
-  'tertiary-container': '#e0e7ee',
+  tertiary: '#3A4D37',
+  'tertiary-container': '#DEE6DC',
 
   // On-surfaces
-  'on-surface': '#2d3336',
-  'on-surface-variant': '#5a6063',
-  'on-background': '#2d3336',
+  'on-surface': '#2A2E28',
+  'on-surface-variant': '#565C54',
+  'on-background': '#2A2E28',
 
   // Borders
-  outline: '#757c7f',
-  'outline-variant': '#adb3b6',
+  outline: '#727972',
+  'outline-variant': '#ABB2AB',
 
   // Error
   error: '#9f403d',
@@ -43,21 +43,21 @@ export const lightColors = {
   'on-error': '#fff7f6',
 
   // Inverse
-  'inverse-surface': '#0E1926',
-  'inverse-on-surface': '#9c9d9e',
+  'inverse-surface': '#0E140D',
+  'inverse-on-surface': '#9C9D9C',
   'inverse-primary': '#ffffff',
 
   // Dialectical accents — user vs AI
   'accent-user': '#6B1D2A',
   'accent-user-container': 'rgba(107,29,42,0.14)',
   'accent-user-dim': '#541724',
-  'accent-ai': '#2A3A50',
-  'accent-ai-container': 'rgba(42,58,80,0.12)',
-  'accent-ai-dim': '#1E2C3E',
+  'accent-ai': '#2A3A28',
+  'accent-ai-container': 'rgba(42,58,40,0.12)',
+  'accent-ai-dim': '#1E2C1D',
 
   // Glassmorphism
-  glass: 'rgba(249,249,250,0.75)',
-  'glass-border': 'rgba(173,179,182,0.12)',
+  glass: 'rgba(248,249,247,0.75)',
+  'glass-border': 'rgba(171,178,171,0.12)',
 } as const;
 
 export type ColorTokens = { [K in keyof typeof lightColors]: string };
@@ -129,12 +129,12 @@ export const colors = lightColors;
 
 // Font family map — use these for fontFamily in StyleSheet
 export const fonts = {
-  thin:     'SFProRounded-Thin',
-  light:    'SFProRounded-Light',
-  regular:  'SFProRounded-Regular',
-  medium:   'SFProRounded-Medium',
+  thin: 'SFProRounded-Thin',
+  light: 'SFProRounded-Light',
+  regular: 'SFProRounded-Regular',
+  medium: 'SFProRounded-Medium',
   semibold: 'SFProRounded-Semibold',
-  bold:     'SFProRounded-Bold',
+  bold: 'SFProRounded-Bold',
 } as const;
 
 // ─── Font size preference ────────────────────────────────────────────────────
@@ -147,9 +147,9 @@ const FONT_SIZE_KEY = 'contra_font_size';
 export type FontSizeOption = 'small' | 'default' | 'large';
 
 export const FONT_SIZE_OPTIONS: { id: FontSizeOption; delta: number }[] = [
-  { id: 'small',   delta: -2 },
+  { id: 'small', delta: -2 },
   { id: 'default', delta: 0 },
-  { id: 'large',   delta: 2 },
+  { id: 'large', delta: 2 },
 ];
 
 function getStoredDelta(): number {
@@ -160,18 +160,18 @@ function getStoredDelta(): number {
 
 function buildTypography(bodyDelta: number) {
   return {
-    'display-lg': { fontFamily: fonts.light,    fontSize: 64, letterSpacing: -1.5 },
-    'display-md': { fontFamily: fonts.light,    fontSize: 48, letterSpacing: -1 },
-    'display-sm': { fontFamily: fonts.light,    fontSize: 36, letterSpacing: -0.5 },
-    'headline-lg': { fontFamily: fonts.bold,    fontSize: 32, letterSpacing: -0.5 },
-    'headline-md': { fontFamily: fonts.bold,    fontSize: 28, letterSpacing: -0.3 },
-    'headline-sm': { fontFamily: fonts.bold,    fontSize: 24, letterSpacing: -0.2 },
-    'body-lg': { fontFamily: fonts.regular,     fontSize: 20 + bodyDelta, lineHeight: 30 + bodyDelta },
-    'body-md': { fontFamily: fonts.regular,     fontSize: 18 + bodyDelta, lineHeight: 28 + bodyDelta },
-    'body-sm': { fontFamily: fonts.regular,     fontSize: 16 + bodyDelta, lineHeight: 24 + bodyDelta },
-    'label-lg': { fontFamily: fonts.bold,       fontSize: 12, letterSpacing: 2,   textTransform: 'uppercase' as const },
-    'label-md': { fontFamily: fonts.bold,       fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
-    'label-sm': { fontFamily: fonts.semibold,   fontSize: 9,  letterSpacing: 1.2, textTransform: 'uppercase' as const },
+    'display-lg': { fontFamily: fonts.light, fontSize: 64, letterSpacing: -1.5 },
+    'display-md': { fontFamily: fonts.light, fontSize: 48, letterSpacing: -1 },
+    'display-sm': { fontFamily: fonts.light, fontSize: 36, letterSpacing: -0.5 },
+    'headline-lg': { fontFamily: fonts.bold, fontSize: 32, letterSpacing: -0.5 },
+    'headline-md': { fontFamily: fonts.bold, fontSize: 28, letterSpacing: -0.3 },
+    'headline-sm': { fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.2 },
+    'body-lg': { fontFamily: fonts.regular, fontSize: 20 + bodyDelta, lineHeight: 30 + bodyDelta },
+    'body-md': { fontFamily: fonts.regular, fontSize: 18 + bodyDelta, lineHeight: 28 + bodyDelta },
+    'body-sm': { fontFamily: fonts.regular, fontSize: 16 + bodyDelta, lineHeight: 24 + bodyDelta },
+    'label-lg': { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 2, textTransform: 'uppercase' as const },
+    'label-md': { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' as const },
+    'label-sm': { fontFamily: fonts.semibold, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase' as const },
   };
 }
 
@@ -183,7 +183,7 @@ export { buildTypography, getStoredDelta };
 
 export const spacing = {
   1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 7: 28, 8: 32,
-  9: 36, 10: 40, 12: 48, 16: 64, 20: 80,
+  9: 36, 10: 40, 12: 48, 16: 64, 20: 80, 22: 88, 24: 96, 28: 112, 32: 128, 40: 160, 48: 192, 64: 256,
 } as const;
 
 export const radius = {

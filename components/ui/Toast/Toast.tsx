@@ -38,6 +38,11 @@ interface ToastProps {
 }
 
 const getBackgroundColor = (type: ToastVariant, colors: ColorTokens) => {
+  // Use inverse-surface for all toasts — consistent, theme-aware
+  return colors["inverse-surface"];
+};
+
+const getAccentColor = (type: ToastVariant, colors: ColorTokens) => {
   switch (type) {
     case "success":
       return "#34C759";
@@ -48,8 +53,12 @@ const getBackgroundColor = (type: ToastVariant, colors: ColorTokens) => {
     case "info":
       return colors.primary;
     default:
-      return colors["inverse-surface"];
+      return colors["outline-variant"];
   }
+};
+
+const getTextColor = (_type: ToastVariant, colors: ColorTokens) => {
+  return colors["inverse-on-surface"];
 };
 
 const getIconForType = (type: ToastVariant) => {
@@ -195,6 +204,11 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
       });
     }, delay);
 
+    // Auto-expand toasts with expandedContent
+    if (hasExpandedContent) {
+      setTimeout(() => { expandToast(toast.id); }, delay + 400);
+    }
+
     if (toast.options.duration > 0) {
       const exitDelay = Math.max(0, toast.options.duration - 500);
 
@@ -265,15 +279,16 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
       return;
     }
 
-    if (isExpanded) {
-      collapseToast(toast.id);
-    } else {
+    if (!isExpanded) {
       expandToast(toast.id);
     }
+    // Don't collapse on tap when expanded — let child buttons handle their own presses
   };
 
   const backgroundColor =
     toast.options.backgroundColor ?? getBackgroundColor(toast.options.type, colors);
+  const textColor = getTextColor(toast.options.type, colors);
+  const accentColor = getAccentColor(toast.options.type, colors);
 
   const _styles = toast.options?.style || {};
 
@@ -312,10 +327,10 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
         android_ripple={{ color: "rgba(255, 255, 255, 0.1)" }}
       >
         <View style={styles.mainContent}>
-          {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+          {icon ? <Text style={[styles.icon, { color: accentColor }]}>{icon}</Text> : null}
           <View style={styles.contentContainer}>
             {typeof toast.content === "string" ? (
-              <Text style={styles.text}>{toast.content}</Text>
+              <Text style={[styles.text, { color: textColor }]}>{toast.content}</Text>
             ) : (
               toast.content
             )}
@@ -328,7 +343,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, index }) => {
                 animatedDismiss();
               }}
             >
-              <Text style={styles.actionText}>
+              <Text style={[styles.actionText, { color: textColor }]}>
                 {toast.options.action.label}
               </Text>
             </TouchableOpacity>

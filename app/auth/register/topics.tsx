@@ -14,7 +14,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StepDots, createSharedStyles } from './index';
+import { StepDots } from './index';
+import { createSharedStyles } from './sharedStyles';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 

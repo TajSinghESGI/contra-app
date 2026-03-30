@@ -13,6 +13,7 @@ import {
 import Animated, {
   Extrapolation,
   interpolate,
+  runOnJS,
   useAnimatedProps,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -24,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { easeGradient } from "react-native-easing-gradient";
 import { fonts, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { useBannerStore } from '@/store/bannerStore';
 import { HEADER_HEIGHT, MAX_BLUR_INTENSITY } from "./conf";
 import type { AnimatedHeaderProps, GradientConfig, BlurConfig, MaskGradientColors } from "./types";
 
@@ -85,9 +87,11 @@ export const AnimatedHeaderScrollView: React.FC<AnimatedHeaderProps> &
       setIsScrollable(contentSizeRef.current > layoutSizeRef.current + 1);
     }, []);
 
+    const setBannerScrollY = useBannerStore.getState().setScrollY;
     const onScroll = useAnimatedScrollHandler<Record<string, unknown>>({
       onScroll: (event) => {
         scrollY.value = event.contentOffset.y;
+        runOnJS(setBannerScrollY)(event.contentOffset.y);
       },
     });
 
@@ -363,7 +367,7 @@ export const AnimatedHeaderScrollView: React.FC<AnimatedHeaderProps> &
           }}
           contentContainerStyle={[
             {
-              paddingTop: insets.top + spacing[4],
+              paddingTop: insets.top + spacing[4] + (useBannerStore.getState().visible ? 24 : 0),
               paddingBottom: insets.bottom + spacing[8],
             },
             contentContainerStyle,

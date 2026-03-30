@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -29,7 +30,7 @@ import { DIFFICULTY_LEVELS, fonts, radius, spacing, type ColorTokens } from '@/c
 import { useTheme } from '@/hooks/useTheme';
 import { useFriendStore } from '@/store/friendStore';
 import { useTopicStore } from '@/store/topicStore';
-import type { Friend } from '@/services/api';
+import { proposeTopic, type Friend } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ export default function OnboardingScreen() {
   const [selectedTopicLabel, setSelectedTopicLabel] = useState<string>('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyId>('easy');
   const [customTopic, setCustomTopic] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
 
   const { categories, topics: categoryTopics, fetchCategories, fetchTopics } = useTopicStore();
 
@@ -95,7 +97,7 @@ export default function OnboardingScreen() {
 
   // Fetch topics when category changes
   useEffect(() => {
-    if (selectedCategory) fetchTopics(selectedCategory);
+    if (selectedCategory) fetchTopics({ category: selectedCategory });
   }, [selectedCategory]);
 
   const ctaScale = useSharedValue(1);
@@ -137,18 +139,31 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (step === 'category' && customTopic.trim()) {
       setStep('difficulty');
     } else if (step === 'difficulty') {
+      const topicText = resolvedTopicText || selectedTopicLabel;
+      let topicId = resolvedTopicId;
+
+      // If public custom topic, create it via API first (triggers auto-translate)
+      if (isPublic && customTopic.trim() && selectedCategory) {
+        try {
+          const result = await proposeTopic({
+            question: customTopic.trim(),
+            category: selectedCategory,
+            is_public: true,
+          });
+          topicId = result.id;
+        } catch {
+          // Fallback: continue without creating public topic
+        }
+      }
+
       router.push({
         pathname: '/debate/new' as any,
-        params: {
-          topic: resolvedTopicText || selectedTopicLabel,
-          topicId: resolvedTopicId,
-          difficulty: selectedDifficulty,
-        },
+        params: { topic: topicText, topicId, difficulty: selectedDifficulty },
       });
     }
   };
@@ -310,6 +325,22 @@ export default function OnboardingScreen() {
                   {customTopic.trim() || selectedTopicLabel}
                 </Text>
               </View>
+
+              {/* Public toggle — only for custom topics */}
+              {!!customTopic.trim() && (
+                <View style={styles.publicRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.publicLabel}>{t('home.proposePublic')}</Text>
+                    <Text style={styles.publicSub}>{t('home.proposePublicSub')}</Text>
+                  </View>
+                  <Switch
+                    value={isPublic}
+                    onValueChange={setIsPublic}
+                    trackColor={{ false: colors['surface-container-high'], true: colors.primary }}
+                    thumbColor={colors['on-primary']}
+                  />
+                </View>
+              )}
 
               {/* Difficulty cards */}
               <View style={styles.diffGrid}>
@@ -511,6 +542,25 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontSize: fs(15),
     color: colors['on-surface'],
     lineHeight: fs(22),
+  },
+  publicRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing[3],
+    marginTop: spacing[4],
+    marginBottom: spacing[2],
+    paddingVertical: spacing[2],
+  },
+  publicLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors['on-surface'],
+  },
+  publicSub: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
   },
 
   // Topic cards (step 2)

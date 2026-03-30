@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +15,8 @@ import { useTranslation } from 'react-i18next';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import Icon from '@/components/ui/Icon';
+import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
+import { useSubscription } from '@/hooks/useSubscription';
 import { getDebateCoaching } from '@/services/api';
 import type { CoachArgument, MissedArgument } from '@/services/api';
 
@@ -61,7 +62,7 @@ function ArgumentCard({
         ) : (
           <Pressable onPress={onUpgrade} accessibilityRole="button">
             <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={styles.lockedOverlay}>
-              <Icon name="crown" size={16} color={colors.primary} />
+              <Icon name="scale" size={16} color={colors.primary} />
               <Text style={styles.lockedText}>{t('coach.unlockWithPro')}</Text>
             </BlurView>
           </Pressable>
@@ -97,7 +98,7 @@ function MissedArgumentCard({
           <Pressable onPress={onUpgrade} accessibilityRole="button">
             <Text style={styles.missedPreview} numberOfLines={2}>{argument.fullText}</Text>
             <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={styles.missedBlur}>
-              <Icon name="crown" size={14} color={colors.primary} />
+              <Icon name="scale" size={14} color={colors.primary} />
               <Text style={styles.lockedText}>{t('coach.seeFullArgument')}</Text>
             </BlurView>
           </Pressable>
@@ -111,12 +112,15 @@ function MissedArgumentCard({
 
 export default function CoachScreen() {
   const { colors, isDark, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  const { isPro } = useSubscription();
   const [isLoading, setIsLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
   const [userArguments, setUserArguments] = useState<(CoachArgument & { id: string; isUnlocked: boolean })[]>([]);
   const [missedArguments, setMissedArguments] = useState<(MissedArgument & { id: string; isUnlocked: boolean })[]>([]);
 
@@ -129,23 +133,25 @@ export default function CoachScreen() {
           data.user_arguments.map((a, i) => ({
             ...a,
             id: `arg-${i}`,
-            isUnlocked: i === 0, // First argument is free, rest behind paywall
+            isUnlocked: isPro || i === 0,
           }))
         );
         setMissedArguments(
           data.missed_arguments.map((a, i) => ({
             ...a,
             id: `missed-${i}`,
-            isUnlocked: i < 2, // First 2 are free
+            isUnlocked: isPro || i < 2,
           }))
         );
       } catch (e: any) {
-        console.error('Failed to load coaching:', e.message);
+        if (e.message?.includes('abonnement') || e.message?.includes('Pro')) {
+          setIsLocked(true);
+        }
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, isPro]);
 
   const freeAnalyzed = userArguments.filter((a) => a.isUnlocked).length;
   const totalAnalyzed = userArguments.length;
@@ -156,6 +162,36 @@ export default function CoachScreen() {
     router.push('/paywall');
   }, [router]);
 
+  if (isLocked) {
+    return (
+      <View style={styles.root}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+            <Icon name="chevron-left" size={22} color={colors['on-surface']} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{t('coach.title')}</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[8] }}>
+          <Icon name="scale" size={40} color={colors['outline-variant']} />
+          <Text style={{ fontFamily: fonts.semibold, fontSize: fs(18), color: colors['on-surface'], marginTop: spacing[4], textAlign: 'center' }}>
+            {t('coach.lockedTitle')}
+          </Text>
+          <Text style={{ fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'], marginTop: spacing[2], textAlign: 'center', lineHeight: fs(20) }}>
+            {t('coach.lockedBody')}
+          </Text>
+          <Pressable
+            onPress={() => router.push('/paywall')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[5], backgroundColor: colors.primary, borderRadius: radius.full, paddingHorizontal: spacing[8], paddingVertical: spacing[3] }}
+          >
+            <Icon name="scale" size={14} color={colors['on-primary']} />
+            <Text style={{ fontFamily: fonts.semibold, fontSize: fs(14), color: colors['on-primary'] }}>{t('coach.lockedCta')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       {/* Header */}
@@ -163,7 +199,7 @@ export default function CoachScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8} accessibilityRole="button">
           <Icon name="chevron-left" size={22} color={colors['on-surface']} />
         </Pressable>
-        <Text style={styles.headerTitle}>Coach IA</Text>
+        <Text style={styles.headerTitle}>{t('coach.title')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -176,21 +212,20 @@ export default function CoachScreen() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionLabelRow}>
             <Icon name="alert-triangle" size={12} color={colors.outline} />
-            <Text style={styles.sectionLabel}>REVOIS TES ERREURS</Text>
+            <Text style={styles.sectionLabel}>{t('coach.reviewErrors')}</Text>
           </View>
           <Text style={styles.sectionCount}>{freeAnalyzed}/{totalAnalyzed}</Text>
         </View>
         <Text style={styles.sectionSubtitle}>
-          L'IA analyse chacun de tes arguments et te montre ce que tu aurais dû dire.
+          {t('coach.reviewDescription')}
         </Text>
 
         {isLoading ? (
-          <View style={{ marginTop: spacing[6], alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.sectionSubtitle, { marginTop: spacing[4], textAlign: 'center' }]}>
-              L'IA analyse tes arguments...
-            </Text>
-          </View>
+          <ShimmerGroup isLoading>
+            {[1, 2, 3].map((i) => (
+              <Shimmer key={i} style={{ height: 160, borderRadius: radius['2xl'], marginBottom: spacing[3] }} />
+            ))}
+          </ShimmerGroup>
         ) : (
           <>
             {userArguments.map((arg, i) => (
@@ -201,12 +236,12 @@ export default function CoachScreen() {
             <View style={[styles.sectionHeader, { marginTop: spacing[8] }]}>
               <View style={styles.sectionLabelRow}>
                 <Icon name="fire" size={12} color={colors.outline} />
-                <Text style={styles.sectionLabel}>ARGUMENTS MANQUÉS</Text>
+                <Text style={styles.sectionLabel}>{t('coach.missedArguments')}</Text>
               </View>
               <Text style={styles.sectionCount}>{freeMissed}/{totalMissed}</Text>
             </View>
             <Text style={styles.sectionSubtitle}>
-              {totalMissed} arguments que tu n'as pas pensé à utiliser.
+              {t('coach.missedDescription', { count: totalMissed })}
             </Text>
 
             {missedArguments.map((arg, i) => (
@@ -216,22 +251,24 @@ export default function CoachScreen() {
         )}
       </ScrollView>
 
-      {/* Floating CTA */}
-      <View style={[styles.floatingCta, { paddingBottom: insets.bottom + spacing[4] }]}>
-        <Pressable onPress={handleUpgrade} accessibilityRole="button">
-          <LinearGradient
-            colors={[colors.primary, colors['primary-dim']]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.ctaButton}
-          >
-            <Icon name="crown" size={16} color={colors['on-primary']} />
-            <Text style={styles.ctaText}>
-              Débloquer tout — {totalAnalyzed - freeAnalyzed + totalMissed - freeMissed} restantes
-            </Text>
-          </LinearGradient>
-        </Pressable>
-      </View>
+      {/* Floating CTA — hidden for Pro users */}
+      {!isPro && (
+        <View style={[styles.floatingCta, { paddingBottom: insets.bottom + spacing[4] }]}>
+          <Pressable onPress={handleUpgrade} accessibilityRole="button">
+            <LinearGradient
+              colors={[colors.primary, colors['primary-dim']]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.ctaButton}
+            >
+              <Icon name="crown" size={16} color={colors['on-primary']} />
+              <Text style={styles.ctaText}>
+                Débloquer tout — {totalAnalyzed - freeAnalyzed + totalMissed - freeMissed} restantes
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }

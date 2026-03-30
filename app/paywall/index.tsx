@@ -1,6 +1,8 @@
 import Icon, { type IconName } from '@/components/ui/Icon';
 import { fonts, PLANS, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { getProfile } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -67,12 +69,22 @@ export default function PaywallScreen() {
     });
   }, []);
 
-  const FEATURES: { icon: IconName; label: string }[] = [
-    { icon: 'circle-check',  label: t('paywall.features.unlimited') },
-    { icon: 'fire',          label: t('paywall.features.brutal') },
-    { icon: 'document-edit', label: t('paywall.features.coaching') },
-    { icon: 'crown',         label: t('paywall.features.rankings') },
+  const COMPARISONS: { icon: IconName; feature: string; free: string; pro: string }[] = [
+    { icon: 'fire',          feature: t('paywall.compare.debates'),     free: t('paywall.compare.debatesFree'),    pro: t('paywall.compare.debatesPro') },
+    { icon: 'star',          feature: t('paywall.compare.difficulty'),  free: t('paywall.compare.difficultyFree'), pro: t('paywall.compare.difficultyPro') },
+    { icon: 'clock',         feature: t('paywall.compare.rounds'),     free: t('paywall.compare.roundsFree'),     pro: t('paywall.compare.roundsPro') },
+    { icon: 'document-edit', feature: t('paywall.compare.coaching'),   free: '—',                                  pro: t('paywall.compare.coachingPro') },
+    { icon: 'chart-line',    feature: t('paywall.compare.analytics'),  free: '—',                                  pro: t('paywall.compare.analyticsPro') },
+    { icon: 'scale',         feature: t('paywall.compare.challenges'), free: '—',                                  pro: t('paywall.compare.challengesPro') },
   ];
+
+  const refreshUser = async () => {
+    try {
+      const updated = await getProfile();
+      const current = useAuthStore.getState().user;
+      if (current) useAuthStore.setState({ user: { ...current, ...updated } });
+    } catch {}
+  };
 
   const handleSubscribe = async () => {
     const pkg = selectedPlan === 'pro_annual' ? packages.yearly : packages.monthly;
@@ -81,7 +93,10 @@ export default function PaywallScreen() {
     setIsLoading(true);
     try {
       const success = await subscribe(pkg);
-      if (success) router.back();
+      if (success) {
+        await refreshUser();
+        router.back();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +106,10 @@ export default function PaywallScreen() {
     setIsLoading(true);
     try {
       const restored = await restore();
-      if (restored) router.back();
+      if (restored) {
+        await refreshUser();
+        router.back();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +140,7 @@ export default function PaywallScreen() {
       {/* Close */}
       <Pressable
         style={[styles.closeButton, { top: insets.top + spacing[3] }]}
-        onPress={() => router.back()}
+        onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
@@ -147,15 +165,28 @@ export default function PaywallScreen() {
           <Text style={styles.subheadline}>{t('paywall.subheadline')}</Text>
         </Animated.View>
 
-        {/* Features */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.featureList}>
-          {FEATURES.map((f) => (
-            <View key={f.label} style={styles.featureRow}>
-              <View style={styles.featureIconWrapper}>
-                <Icon name={f.icon} size={18} color={dark.text} />
+        {/* Comparison table */}
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.compareTable}>
+          {/* Header row */}
+          <View style={styles.compareHeaderRow}>
+            <View style={{ flex: 1 }} />
+            <Text style={styles.compareHeaderFree}>{t('paywall.compare.free')}</Text>
+            <Text style={styles.compareHeaderPro}>{t('paywall.compare.pro')}</Text>
+          </View>
+
+          {COMPARISONS.map((c, i) => (
+            <Animated.View
+              key={c.feature}
+              entering={FadeInDown.delay(150 + i * 50).duration(350)}
+              style={[styles.compareRow, i === COMPARISONS.length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <View style={styles.compareFeature}>
+                <Icon name={c.icon} size={14} color={dark.textDim} />
+                <Text style={styles.compareFeatureText}>{c.feature}</Text>
               </View>
-              <Text style={styles.featureText}>{f.label}</Text>
-            </View>
+              <Text style={styles.compareFreeValue}>{c.free}</Text>
+              <Text style={styles.compareProValue}>{c.pro}</Text>
+            </Animated.View>
           ))}
         </Animated.View>
 
@@ -294,29 +325,70 @@ const createStyles = (_colors: ColorTokens, typography: any, fs: (n: number) => 
       lineHeight: fs(24),
     },
 
-    // Features
-    featureList: {
-      gap: spacing[3],
+    // Comparison table
+    compareTable: {
+      backgroundColor: dark.surface,
+      borderRadius: 20,
+      padding: spacing[4],
       marginBottom: spacing[5],
     },
-    featureRow: {
+    compareHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing[4],
+      paddingBottom: spacing[3],
+      marginBottom: spacing[1],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(255,255,255,0.08)',
     },
-    featureIconWrapper: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.lg,
-      backgroundColor: dark.surfaceHi,
+    compareHeaderFree: {
+      width: 52,
+      fontFamily: fonts.semibold,
+      fontSize: fs(10),
+      color: dark.textDim,
+      textAlign: 'center',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    compareHeaderPro: {
+      width: 52,
+      fontFamily: fonts.bold,
+      fontSize: fs(10),
+      color: dark.accent,
+      textAlign: 'center',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    compareRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      paddingVertical: spacing[3],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(255,255,255,0.05)',
     },
-    featureText: {
-      fontFamily: fonts.medium,
-      fontSize: fs(15),
-      color: dark.text,
+    compareFeature: {
       flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[2],
+    },
+    compareFeatureText: {
+      fontFamily: fonts.medium,
+      fontSize: fs(13),
+      color: dark.text,
+    },
+    compareFreeValue: {
+      width: 52,
+      fontFamily: fonts.regular,
+      fontSize: fs(11),
+      color: dark.textDim,
+      textAlign: 'center',
+    },
+    compareProValue: {
+      width: 52,
+      fontFamily: fonts.semibold,
+      fontSize: fs(11),
+      color: dark.accent,
+      textAlign: 'center',
     },
 
     // Plan cards

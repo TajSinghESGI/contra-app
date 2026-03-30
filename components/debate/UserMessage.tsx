@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, TextInput, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -40,7 +40,13 @@ export const UserMessage = memo(function UserMessage({
 
   return (
     <Animated.View style={[styles.bubble, animatedStyle]}>
-      <Text style={styles.content}>{content}</Text>
+      <TextInput
+        style={styles.content}
+        value={content}
+        editable={false}
+        multiline
+        scrollEnabled={false}
+      />
     </Animated.View>
   );
 });

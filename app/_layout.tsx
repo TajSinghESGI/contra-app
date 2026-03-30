@@ -166,6 +166,10 @@ export default function RootLayout() {
               options={{ headerShown: false, animation: 'fade_from_bottom' }}
             />
             <Stack.Screen
+              name="debate/replay/[id]"
+              options={{ headerShown: false, animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
               name="debate/analysis/[id]"
               options={{ headerShown: false, animation: 'slide_from_right' }}
             />

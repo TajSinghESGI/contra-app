@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   Pressable,
+  ScrollView,
+  ActivityIndicator,
   Platform,
   StyleSheet,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
 import { LegendList } from '@legendapp/list';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -24,80 +26,38 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import AnimatedInputBar from '@/components/ui/AnimatedInputBar';
 import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
-import Dropdown from '@/components/ui/Dropdown';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import Icon from '@/components/ui/Icon';
+import { Toast } from '@/components/ui/Toast';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
-import { LiveDot } from '@/components/shared/LiveDot';
+import { useBannerStore } from '@/store/bannerStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTopicStore } from '@/store/topicStore';
 import { HEADER_HEIGHT } from '@/components/ui/AnimatedHeaderScrollView/conf';
+import type { Topic } from '@/services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'brutal';
 
-interface Arena {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  isLive: boolean;
-  participants: number;
-  difficulty: Difficulty;
-  timestamp: string;
-  avatarColors: string[];
-}
+const DIFFICULTY_KEYS: Difficulty[] = ['easy', 'medium', 'hard', 'brutal'];
 
-// ─── Data derived from topic catalog ──────────────────────────────────────────
-
-const DIFFICULTIES = ['easy', 'medium', 'hard', 'easy', 'medium', 'brutal'] as const;
-const AVATAR_PALETTES = [
-  ['#d3dbdf', '#dde3e7', '#e4e9ec'],
-  ['#e5e2e1', '#e4e9ec', '#dde3e7'],
-  ['#e3e1ec', '#dde3e7', '#e4e9ec'],
-  ['#d3dbdf', '#e5e2e1', '#e3e1ec'],
-  ['#dde3e7', '#e4e9ec', '#d3dbdf'],
-  ['#e4e9ec', '#e3e1ec', '#dde3e7'],
-];
-const TIMESTAMPS = ['2 min', '8 min', '34 min', '1 h', '3 h', '5 min'];
-
-function buildArenas(topics: any[]): Arena[] {
-  return topics.map((topic: any, i: number) => ({
-    id: topic.id,
-    title: topic.question,
-    description: topic.description,
-    category: topic.category_label ?? topic.category,
-    difficulty: DIFFICULTIES[i % DIFFICULTIES.length],
-    participants: topic.participant_count ?? 0,
-    isLive: false,
-    timestamp: '',
-    avatarColors: AVATAR_PALETTES[i % AVATAR_PALETTES.length],
-  }));
-}
-
-const buildDifficultyFilters = (t: TFunction): { key: Difficulty | 'all'; label: string }[] => [
-  { key: 'all', label: t('arenas.difficultyFilter.all') },
-  { key: 'easy', label: t('arenas.difficultyFilter.easy') },
-  { key: 'medium', label: t('arenas.difficultyFilter.medium') },
-  { key: 'hard', label: t('arenas.difficultyFilter.hard') },
-  { key: 'brutal', label: t('arenas.difficultyFilter.brutal') },
-];
-
-const getDifficultyConfig = (colors: ColorTokens, t: TFunction): Record<Difficulty, { bg: string; text: string; label: string }> => ({
-  easy:   { bg: '#e3f9e5', text: '#1e7e34', label: t('difficulty.easy') },
-  medium: { bg: '#fff3cd', text: '#856404', label: t('difficulty.medium') },
-  hard:   { bg: '#ffe0dd', text: colors.error, label: t('difficulty.hard') },
-  brutal: { bg: colors['on-surface'], text: colors['on-primary'], label: t('difficulty.brutal') },
+const getDifficultyConfig = (colors: ColorTokens, isDark: boolean, t: TFunction): Record<Difficulty, { bg: string; text: string; label: string }> => ({
+  easy:   { bg: isDark ? 'rgba(52,199,89,0.15)' : '#e3f9e5', text: isDark ? '#34C759' : '#1e7e34', label: t('difficulty.easy') },
+  medium: { bg: isDark ? 'rgba(255,149,0,0.15)' : '#fff3cd', text: isDark ? '#FF9500' : '#856404', label: t('difficulty.medium') },
+  hard:   { bg: isDark ? 'rgba(255,59,48,0.15)' : '#ffe0dd', text: isDark ? '#FF6961' : colors.error, label: t('difficulty.hard') },
+  brutal: { bg: isDark ? 'rgba(175,82,222,0.15)' : colors['on-surface'], text: isDark ? '#AF52DE' : colors['on-primary'], label: t('difficulty.brutal') },
 });
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
-  const { colors, typography, fs } = useTheme();
+function TopicCard({ topic, difficulty, onPress }: { topic: Topic; difficulty: Difficulty; onPress: () => void }) {
+  const { colors, isDark, typography, fs } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
-  const diff = getDifficultyConfig(colors, t)[arena.difficulty];
+  const diff = getDifficultyConfig(colors, isDark, t)[difficulty];
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [
@@ -107,19 +67,25 @@ function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
       <View style={styles.cardTopRow}>
         <View style={styles.badgeRow}>
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{arena.category}</Text>
+            <Text style={styles.categoryText}>{topic.category_label}</Text>
           </View>
+          {topic.is_public && topic.created_by_name && (
+            <View style={styles.creatorBadge}>
+              <Icon name="user" size={10} color={colors.primary} />
+              <Text style={styles.creatorText}>{topic.created_by_name}</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      <Text style={styles.cardTitle}>{arena.title}</Text>
+      <Text style={styles.cardTitle}>{topic.question}</Text>
       <Text style={styles.cardDescription} numberOfLines={2}>
-        {arena.description}
+        {topic.description}
       </Text>
 
       <View style={styles.cardBottomRow}>
         <Text style={styles.participantsText}>
-          {arena.participants > 0 ? t('common.participants', { count: arena.participants }) : ''}
+          {topic.participant_count > 0 ? t('common.participants', { count: topic.participant_count }) : ''}
         </Text>
 
         <View style={styles.rightActions}>
@@ -137,6 +103,105 @@ function ArenaCard({ arena, onPress }: { arena: Arena; onPress: () => void }) {
   );
 }
 
+// ─── Filter sheet content ─────────────────────────────────────────────────────
+
+function FilterSheetContent({
+  categories,
+  initialCategoryIds,
+  initialDifficulty,
+  onConfirm,
+}: {
+  categories: { id: string; label: string; emoji: string }[];
+  initialCategoryIds: string[];
+  initialDifficulty: Difficulty | 'all';
+  onConfirm: (categoryIds: string[], difficulty: Difficulty | 'all') => void;
+}) {
+  const { colors, isDark, typography, fs } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+  const diffConfig = useMemo(() => getDifficultyConfig(colors, isDark, t), [colors, isDark, t]);
+
+  const [draftCategories, setDraftCategories] = useState<string[]>(initialCategoryIds);
+  const [draftDifficulty, setDraftDifficulty] = useState(initialDifficulty);
+
+  const toggleCategory = (id: string) => {
+    setDraftCategories((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+      <View style={styles.sheetContent}>
+        {/* Categories */}
+        <Text style={styles.sheetSectionTitle}>{t('arenas.filterCategories')}</Text>
+        <View style={styles.sheetChipsWrap}>
+          <Pressable
+            onPress={() => setDraftCategories([])}
+            style={[styles.sheetChip, draftCategories.length === 0 && styles.sheetChipActive]}
+          >
+            <Text style={[styles.sheetChipText, draftCategories.length === 0 && styles.sheetChipTextActive]}>
+              {t('arenas.allCategories')}
+            </Text>
+          </Pressable>
+          {categories.map((cat) => {
+            const isSelected = draftCategories.includes(cat.id);
+            return (
+              <Pressable
+                key={cat.id}
+                onPress={() => toggleCategory(cat.id)}
+                style={[styles.sheetChip, isSelected && styles.sheetChipActive]}
+              >
+                <Text style={[styles.sheetChipText, isSelected && styles.sheetChipTextActive]}>
+                  {cat.emoji} {cat.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Difficulty */}
+        <Text style={[styles.sheetSectionTitle, { marginTop: spacing[5] }]}>{t('arenas.filterDifficulty')}</Text>
+        <View style={styles.sheetChipsWrap}>
+          <Pressable
+            onPress={() => setDraftDifficulty('all')}
+            style={[styles.sheetChip, draftDifficulty === 'all' && styles.sheetChipActive]}
+          >
+            <Text style={[styles.sheetChipText, draftDifficulty === 'all' && styles.sheetChipTextActive]}>
+              {t('arenas.difficultyFilter.all')}
+            </Text>
+          </Pressable>
+          {DIFFICULTY_KEYS.map((key) => (
+            <Pressable
+              key={key}
+              onPress={() => setDraftDifficulty(key === draftDifficulty ? 'all' : key)}
+              style={[
+                styles.sheetChip,
+                draftDifficulty === key && { backgroundColor: diffConfig[key].bg },
+              ]}
+            >
+              <Text style={[
+                styles.sheetChipText,
+                draftDifficulty === key && { color: diffConfig[key].text, fontFamily: fonts.semibold },
+              ]}>
+                {diffConfig[key].label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Confirm button */}
+        <Pressable
+          onPress={() => onConfirm(draftCategories, draftDifficulty)}
+          style={styles.sheetConfirmButton}
+        >
+          <Text style={styles.sheetConfirmText}>{t('common.confirm')}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ArenasScreen() {
@@ -145,52 +210,75 @@ export default function ArenasScreen() {
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [activeDifficulty, setActiveDifficulty] = useState<Difficulty | 'all'>('all');
+  const { present, dismiss } = useBottomSheet();
+
+  // Filters (applied)
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | 'all'>('all');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const { topics, isLoading, fetchTopics } = useTopicStore();
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const difficultyFilters = useMemo(() => buildDifficultyFilters(t), [t]);
-
-  const selectedDifficultyLabel =
-    difficultyFilters.find((f) => f.key === activeDifficulty)?.label ?? t('arenas.difficultyFilter.all');
-
-  useEffect(() => {
-    fetchTopics();
-  }, []);
-
-  const arenas = useMemo(() => buildArenas(topics), [topics]);
-
-  const filteredArenas = arenas.filter((arena: Arena) => {
-    const matchesDifficulty =
-      activeDifficulty === 'all' || arena.difficulty === activeDifficulty;
-
-    const matchesSearch =
-      searchQuery.trim() === '' ||
-      arena.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      arena.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesDifficulty && matchesSearch;
-  });
+  const {
+    topics, categories, isLoading, isLoadingMore, hasMore, totalCount,
+    fetchTopics, fetchNextPage, fetchCategories,
+  } = useTopicStore();
 
   const defaultDifficulty = useAuthStore((s) => s.user?.default_difficulty) ?? 'medium';
+  const activeDifficulty = selectedDifficulty === 'all' ? defaultDifficulty : selectedDifficulty;
 
-  const handleArenaPress = useCallback((arena: Arena) => {
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch topics when filters change
+  useEffect(() => {
+    fetchTopics({
+      category: selectedCategoryIds.length > 0 ? selectedCategoryIds.join(',') : undefined,
+      search: debouncedSearch || undefined,
+    });
+  }, [selectedCategoryIds, debouncedSearch]);
+
+  useFocusEffect(
+    useCallback(() => { fetchCategories(); }, [])
+  );
+
+  // Active filter count for badge
+  const activeFilterCount = selectedCategoryIds.length + (selectedDifficulty !== 'all' ? 1 : 0);
+
+  const handleTopicPress = useCallback((topic: Topic) => {
+    const { dailyUsed, dailyLimit } = useBannerStore.getState();
+    if (dailyLimit !== null && dailyUsed >= dailyLimit) {
+      Toast.show(t('home.dailyLimitReached'), {
+        type: 'error',
+        duration: 4000,
+      });
+      return;
+    }
     router.push({
       pathname: '/debate/new',
-      params: { topic: arena.title, topicId: arena.id, difficulty: defaultDifficulty },
+      params: { topic: topic.question, topicId: topic.id, difficulty: activeDifficulty },
     });
-  }, [router, defaultDifficulty]);
+  }, [router, activeDifficulty, t]);
 
-  const renderArena = useCallback(({ item }: { item: Arena }) => (
-    <ArenaCard arena={item} onPress={() => handleArenaPress(item)} />
-  ), [handleArenaPress]);
+  const renderTopic = useCallback(({ item }: { item: Topic }) => (
+    <TopicCard topic={item} difficulty={activeDifficulty as Difficulty} onPress={() => handleTopicPress(item)} />
+  ), [handleTopicPress, activeDifficulty]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasMore && !isLoadingMore) fetchNextPage();
+  }, [hasMore, isLoadingMore, fetchNextPage]);
 
   // ─── Scroll-driven header animations ─────────────────────────────────────
   const scrollY = useSharedValue(0);
+  const bannerExtra = useBannerStore.getState().visible ? 24 : 0;
   const fixedHeaderHeight = HEADER_HEIGHT + insets.top;
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollY.value = event.nativeEvent.contentOffset.y;
+    const y = event.nativeEvent.contentOffset.y;
+    scrollY.value = y;
+    useBannerStore.getState().setScrollY(y);
   }, []);
 
   const largeTitleStyle = useAnimatedStyle(() => ({
@@ -226,13 +314,37 @@ export default function ArenasScreen() {
     ? (Platform.OS === 'ios' ? 'systemThickMaterialDark' : 'dark')
     : (Platform.OS === 'ios' ? 'systemThickMaterialLight' : 'light');
 
-  // ─── List header (large title + search) ──────────────────────────────────
+  const diffConfig = useMemo(() => getDifficultyConfig(colors, isDark, t), [colors, isDark, t]);
+
+  const openFilterSheet = useCallback(() => {
+    present(
+      <BottomSheet
+        snapPoints={['80%']}
+        enableBackdrop
+        dismissOnBackdropPress
+        dismissOnSwipeDown
+      >
+        <FilterSheetContent
+          categories={categories}
+          initialCategoryIds={selectedCategoryIds}
+          initialDifficulty={selectedDifficulty}
+          onConfirm={(catIds, diff) => {
+            setSelectedCategoryIds(catIds);
+            setSelectedDifficulty(diff);
+            dismiss();
+          }}
+        />
+      </BottomSheet>
+    );
+  }, [present, dismiss, categories, selectedCategoryIds, selectedDifficulty]);
+
+  // ─── List header ──────────────────────────────────────────────────────────
   const ListHeader = useMemo(() => (
-    <View style={{ paddingTop: insets.top + spacing[4], paddingBottom: spacing[2] }}>
+    <View style={{ paddingTop: insets.top + spacing[4] + bannerExtra, paddingBottom: spacing[2] }}>
       <Animated.View style={largeTitleStyle}>
         <Text style={styles.screenTitle}>{t('arenas.title')}</Text>
         <Text style={styles.screenSubtitle}>
-          {t('arenas.subtitle')} · {t('arenas.arenaCount', { count: filteredArenas.length })}
+          {t('arenas.subtitle')} · {t('arenas.arenaCount', { count: totalCount })}
         </Text>
       </Animated.View>
       <View style={styles.searchRow}>
@@ -249,39 +361,32 @@ export default function ArenasScreen() {
             clearButtonMode="while-editing"
           />
         </View>
-        <Dropdown>
-          <Dropdown.Trigger>
-            <View style={styles.filterTrigger}>
-              <Text style={styles.filterTriggerText}>{selectedDifficultyLabel}</Text>
-              <Icon name="chevron-down" size={14} color={colors['on-surface-variant']} />
+        <Pressable onPress={openFilterSheet} style={styles.filterTrigger}>
+          <Icon name="settings-gear-filled" size={16} color={colors['on-surface-variant']} />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
             </View>
-          </Dropdown.Trigger>
-          <Dropdown.Content>
-            {difficultyFilters.map((filter) => (
-              <Dropdown.Item
-                key={filter.key}
-                onPress={() => setActiveDifficulty(filter.key)}
-              >
-                <Text
-                  style={[
-                    styles.filterItemText,
-                    activeDifficulty === filter.key && styles.filterItemTextActive,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </Dropdown.Item>
-            ))}
-          </Dropdown.Content>
-        </Dropdown>
+          )}
+        </Pressable>
       </View>
     </View>
-  ), [insets.top, styles, searchQuery, selectedDifficultyLabel, colors, activeDifficulty, filteredArenas.length, largeTitleStyle, t, difficultyFilters]);
+  ), [insets.top, styles, searchQuery, colors, totalCount, largeTitleStyle, t, activeFilterCount, bannerExtra]);
+
+  // ─── List footer (loading more) ───────────────────────────────────────────
+  const ListFooter = useMemo(() => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={{ paddingVertical: spacing[6], alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={colors['on-surface-variant']} />
+      </View>
+    );
+  }, [isLoadingMore, colors]);
 
   if (isLoading) {
     return (
       <View style={styles.root}>
-        <View style={{ paddingTop: insets.top + spacing[4], paddingHorizontal: spacing[4] }}>
+        <View style={{ paddingTop: insets.top + spacing[4] + bannerExtra, paddingHorizontal: spacing[4] }}>
           <Text style={styles.screenTitle}>{t('arenas.title')}</Text>
           <ShimmerGroup isLoading>
             {[1, 2, 3].map((i) => (
@@ -310,7 +415,7 @@ export default function ArenasScreen() {
       <Animated.View
         style={[
           styles.fixedHeader,
-          { paddingTop: insets.top, height: fixedHeaderHeight },
+          { paddingTop: insets.top, height: HEADER_HEIGHT + insets.top },
           smallHeaderStyle,
         ]}
         pointerEvents="none"
@@ -322,7 +427,7 @@ export default function ArenasScreen() {
       </Animated.View>
 
       {/* ── Content ── */}
-      {filteredArenas.length === 0 ? (
+      {topics.length === 0 && !isLoading ? (
         <>
           {ListHeader}
           <View style={styles.emptyState}>
@@ -332,17 +437,22 @@ export default function ArenasScreen() {
         </>
       ) : (
         <LegendList
-          data={filteredArenas}
+          data={topics}
           keyExtractor={(item) => item.id}
-          renderItem={renderArena}
+          renderItem={renderTopic}
           estimatedItemSize={180}
           ListHeaderComponent={ListHeader}
+          ListFooterComponent={ListFooter}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.3}
         />
       )}
+
+      {/* Filter BottomSheet is presented via useBottomSheet().present() */}
     </View>
   );
 }
@@ -410,31 +520,28 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     flex: 1,
   },
   filterTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    backgroundColor: colors['surface-container-low'],
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
+    backgroundColor: colors['surface-container-low'],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterTriggerText: {
-    fontFamily: fonts.medium,
-    fontSize: fs(13),
-    color: colors['on-surface-variant'],
+  filterBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterItemText: {
-    fontFamily: fonts.regular,
-    fontSize: fs(14),
-    color: colors['on-surface'],
-  },
-  filterItemTextActive: {
-    fontFamily: fonts.semibold,
-    color: colors.primary,
-  },
-
-  arenaListContainer: {
-    marginTop: spacing[4],
+  filterBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    color: colors['on-primary'],
   },
 
   card: {
@@ -447,7 +554,6 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   cardPressed: {
     opacity: 0.92,
   },
-
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,20 +563,6 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#e8fdf0',
-    paddingHorizontal: spacing[2],
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  liveText: {
-    fontFamily: fonts.semibold,
-    fontSize: fs(10),
-    color: '#34C759',
   },
   categoryBadge: {
     backgroundColor: colors['surface-container-low'],
@@ -483,12 +575,20 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontSize: fs(10),
     color: colors['on-surface-variant'],
   },
-  timestamp: {
-    fontFamily: fonts.regular,
-    fontSize: fs(11),
-    color: colors['outline-variant'],
+  creatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors['surface-container-low'],
+    paddingHorizontal: spacing[2],
+    paddingVertical: 3,
+    borderRadius: radius.full,
   },
-
+  creatorText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(10),
+    color: colors.primary,
+  },
   cardTitle: {
     fontFamily: fonts.bold,
     fontSize: fs(17),
@@ -504,29 +604,11 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     lineHeight: fs(20),
     marginTop: 6,
   },
-
   cardBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 14,
-  },
-  participantsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    flex: 1,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stackAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors['surface-container-lowest'],
   },
   participantsText: {
     fontFamily: fonts.regular,
@@ -557,6 +639,57 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontFamily: fonts.semibold,
     fontSize: fs(12),
     color: colors['on-surface'],
+  },
+
+  // BottomSheet
+  sheetContent: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[3],
+    paddingBottom: 120,
+  },
+  sheetSectionTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(13),
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.outline,
+    marginBottom: spacing[3],
+  },
+  sheetChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  sheetChip: {
+    backgroundColor: colors['surface-container-low'],
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 8,
+  },
+  sheetChipActive: {
+    backgroundColor: colors['on-surface'],
+  },
+  sheetChipText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(13),
+    color: colors['on-surface-variant'],
+  },
+  sheetChipTextActive: {
+    color: colors.background,
+  },
+  sheetConfirmButton: {
+    marginTop: spacing[6],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    height: 52,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  sheetConfirmText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-primary'],
+    letterSpacing: 0.5,
   },
 
   emptyState: {

@@ -17,9 +17,9 @@ export default function AboutScreen() {
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
 
   const LINKS = [
-    { label: t('settings.about.privacyPolicy'), url: 'https://contra.app/privacy' },
-    { label: t('settings.about.terms'),          url: 'https://contra.app/terms' },
-    { label: t('settings.about.website'),        url: 'https://contra.app' },
+    { label: t('settings.about.privacyPolicy'), url: 'https://contra-app.cloud/cgv' },
+    { label: t('settings.about.terms'),          url: 'https://contra-app.cloud/terms' },
+    { label: t('settings.about.website'),        url: 'https://contra-app.cloud/' },
   ];
 
   return (

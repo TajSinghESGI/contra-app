@@ -23,6 +23,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import { track } from '@/services/analytics';
 import { AnalyticsEvents } from '@/services/analyticsEvents';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
@@ -167,43 +168,78 @@ function ResultScreenInner() {
           { paddingTop: insets.top + spacing[5], paddingBottom: insets.bottom + 120 },
         ]}
       >
-        {/* ── Verdict header ── */}
-        <Animated.View style={[styles.verdictSection, { marginTop: spacing[10] }, animatedScoreStyle]}>
-          <Text style={styles.sessionLabel}>{t('result.sessionVerdict')}</Text>
-          <Text style={styles.verdictText}>{score?.verdict ?? t('common.loading')}</Text>
-          <View style={styles.scoreRow}>
-            <Text style={styles.scoreNumber}>{score?.total ?? '—'}</Text>
-            <Text style={styles.scoreOutOf}>{t('result.scoreOutOf')}</Text>
-          </View>
-        </Animated.View>
+        {!score ? (
+          /* ── Shimmer skeleton while score loads ── */
+          <Animated.View style={[{ marginTop: spacing[10] }, animatedScoreStyle]}>
+            <ShimmerGroup isLoading>
+              <Shimmer style={{ width: 120, height: 14, borderRadius: radius.md, marginBottom: spacing[3] }} />
+              <Shimmer style={{ width: '80%', height: 40, borderRadius: radius.lg, marginBottom: spacing[2] }} />
+              <Shimmer style={{ width: 100, height: 72, borderRadius: radius.lg, marginBottom: spacing[6] }} />
+              <View style={styles.metricsGrid}>
+                <View style={styles.metricsRow}>
+                  <Shimmer style={{ flex: 1, height: 130, borderRadius: radius['2xl'] }} />
+                  <Shimmer style={{ flex: 1, height: 130, borderRadius: radius['2xl'] }} />
+                </View>
+                <View style={styles.metricsRow}>
+                  <Shimmer style={{ flex: 1, height: 130, borderRadius: radius['2xl'] }} />
+                  <Shimmer style={{ flex: 1, height: 130, borderRadius: radius['2xl'] }} />
+                </View>
+              </View>
+              <Shimmer style={{ height: 140, borderRadius: 24 }} />
+            </ShimmerGroup>
+          </Animated.View>
+        ) : (
+          <>
+            {/* ── Verdict header ── */}
+            <Animated.View style={[styles.verdictSection, { marginTop: spacing[10] }, animatedScoreStyle]}>
+              <Text style={styles.sessionLabel}>{t('result.sessionVerdict')}</Text>
+              <Text style={styles.verdictText}>{score.verdict}</Text>
+              <View style={styles.scoreRow}>
+                <Text style={styles.scoreNumber}>{score.total}</Text>
+                <Text style={styles.scoreOutOf}>{t('result.scoreOutOf')}</Text>
+              </View>
+            </Animated.View>
 
-        {/* ── Bento grid metrics (2×2) ── */}
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricsRow}>
-            <MetricCard label={t('result.criteria.logic')} value={`${score?.logic ?? 0}%`} percentage={score?.logic ?? 0} description={score?.logic && score.logic >= 75 ? t('result.criteriaDescriptions.logic.good') : t('result.criteriaDescriptions.logic.bad')} delay={200} />
-            <MetricCard label={t('result.criteria.rhetoric')} value={`${score?.rhetoric ?? 0}%`} percentage={score?.rhetoric ?? 0} description={score?.rhetoric && score.rhetoric >= 75 ? t('result.criteriaDescriptions.rhetoric.good') : t('result.criteriaDescriptions.rhetoric.bad')} delay={350} />
-          </View>
-          <View style={styles.metricsRow}>
-            <MetricCard label={t('result.criteria.evidence')} value={`${score?.evidence ?? 0}%`} percentage={score?.evidence ?? 0} description={score?.evidence && score.evidence >= 75 ? t('result.criteriaDescriptions.evidence.good') : t('result.criteriaDescriptions.evidence.bad')} delay={500} />
-            <MetricCard label={t('result.criteria.originality')} value={`${score?.originality ?? 0}%`} percentage={score?.originality ?? 0} description={score?.originality && score.originality >= 75 ? t('result.criteriaDescriptions.originality.good') : t('result.criteriaDescriptions.originality.bad')} delay={650} />
-          </View>
-        </View>
+            {/* ── Bento grid metrics (2×2) ── */}
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricsRow}>
+                <MetricCard label={t('result.criteria.logic')} value={`${score.logic}%`} percentage={score.logic} description={score.logic >= 75 ? t('result.criteriaDescriptions.logic.good') : t('result.criteriaDescriptions.logic.bad')} delay={200} />
+                <MetricCard label={t('result.criteria.rhetoric')} value={`${score.rhetoric}%`} percentage={score.rhetoric} description={score.rhetoric >= 75 ? t('result.criteriaDescriptions.rhetoric.good') : t('result.criteriaDescriptions.rhetoric.bad')} delay={350} />
+              </View>
+              <View style={styles.metricsRow}>
+                <MetricCard label={t('result.criteria.evidence')} value={`${score.evidence}%`} percentage={score.evidence} description={score.evidence >= 75 ? t('result.criteriaDescriptions.evidence.good') : t('result.criteriaDescriptions.evidence.bad')} delay={500} />
+                <MetricCard label={t('result.criteria.originality')} value={`${score.originality}%`} percentage={score.originality} description={score.originality >= 75 ? t('result.criteriaDescriptions.originality.good') : t('result.criteriaDescriptions.originality.bad')} delay={650} />
+              </View>
+            </View>
 
-        {/* ── Analytical Deep Dive card (navigates to full analysis) ── */}
-        <TouchableOpacity
-          style={styles.analysisCard}
-          activeOpacity={0.85}
-          onPress={() => router.push({ pathname: '/debate/analysis/[id]', params: { id: id!, topic: topicParam || score?.topic || '' } })}
-        >
-          <Text style={styles.analysisLabel}>{t('result.analyticalDeepDive')}</Text>
-          <Text style={styles.analysisBody} numberOfLines={3}>
-            {score?.analysis || t('result.analysisLoading')}
-          </Text>
-          <View style={styles.analysisFooter}>
-            <Text style={styles.analysisLink}>{t('result.readFullAnalysis')}</Text>
-            <Icon name="chevron-right" size={14} color={colors.primary} />
-          </View>
-        </TouchableOpacity>
+            {/* ── Analytical Deep Dive card (navigates to full analysis) ── */}
+            <TouchableOpacity
+              style={styles.analysisCard}
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: '/debate/analysis/[id]', params: { id: id!, topic: topicParam || score.topic || '' } })}
+            >
+              <Text style={styles.analysisLabel}>{t('result.analyticalDeepDive')}</Text>
+              <Text style={styles.analysisBody} numberOfLines={3}>
+                {score.analysis}
+              </Text>
+              <View style={styles.analysisFooter}>
+                <Text style={styles.analysisLink}>{t('result.readFullAnalysis')}</Text>
+                <Icon name="chevron-right" size={14} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+
+            {/* ── View conversation card ── */}
+            <TouchableOpacity
+              style={styles.conversationCard}
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: '/debate/replay/[id]', params: { id: id!, topic: topicParam || score.topic || '' } })}
+            >
+              <Icon name="document" size={20} color={colors['on-surface-variant']} />
+              <Text style={styles.conversationText}>{t('result.viewConversation')}</Text>
+              <Icon name="chevron-right" size={14} color={colors['outline-variant']} />
+            </TouchableOpacity>
+          </>
+        )}
 
       </ScrollView>
 
@@ -381,6 +417,22 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontFamily: fonts.semibold,
     fontSize: fs(13),
     color: colors.primary,
+  },
+  conversationCard: {
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: 24,
+    padding: spacing[5],
+    marginBottom: spacing[6],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    ...shadows.ambient,
+  },
+  conversationText: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-surface'],
   },
   hintRow: {
     flexDirection: 'row',

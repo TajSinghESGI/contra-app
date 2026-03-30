@@ -5,12 +5,12 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
+import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { getChallengeCoaching, type ChallengeCoaching } from '@/services/api';
@@ -52,9 +52,12 @@ export default function ChallengeCoachingScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Analyse en cours...</Text>
+        <View style={styles.shimmerContainer}>
+          <ShimmerGroup isLoading>
+            <Shimmer style={{ height: 180, borderRadius: radius['3xl'], marginBottom: spacing[4] }} />
+            <Shimmer style={{ height: 180, borderRadius: radius['3xl'], marginBottom: spacing[4] }} />
+            <Shimmer style={{ height: 100, borderRadius: radius['3xl'] }} />
+          </ShimmerGroup>
         </View>
       ) : error || !coaching ? (
         <View style={styles.loadingContainer}>
@@ -137,10 +140,10 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     justifyContent: 'center',
     gap: spacing[4],
   },
-  loadingText: {
-    fontFamily: fonts.medium,
-    fontSize: fs(15),
-    color: colors['on-surface-variant'],
+  shimmerContainer: {
+    flex: 1,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
   },
   errorText: {
     fontFamily: fonts.regular,

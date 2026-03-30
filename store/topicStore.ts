@@ -1,34 +1,43 @@
 import { create } from 'zustand';
+import i18n from '@/i18n';
 import { getTopics, getCategories } from '@/services/api';
-import type { Topic, Category } from '@/services/api';
+import type { Topic, Category, TopicFilters } from '@/services/api';
 
 interface TopicState {
   categories: Category[];
   topics: Topic[];
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   selectedCategory: string | null;
   lang: string;
+  totalCount: number;
+  hasMore: boolean;
 
   setLang: (lang: string) => void;
   fetchCategories: () => Promise<void>;
-  fetchTopics: (category?: string) => Promise<void>;
+  fetchTopics: (filters?: Omit<TopicFilters, 'lang' | 'limit' | 'offset'>) => Promise<void>;
+  fetchNextPage: () => Promise<void>;
   setSelectedCategory: (categoryId: string | null) => void;
 }
+
+const PAGE_SIZE = 20;
 
 export const useTopicStore = create<TopicState>()((set, get) => ({
   categories: [],
   topics: [],
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   selectedCategory: null,
-  lang: 'fr',
+  lang: i18n.language || 'fr',
+  totalCount: 0,
+  hasMore: false,
 
   setLang: (lang: string) => {
     set({ lang });
-    // Re-fetch everything in the new language
     get().fetchCategories();
-    get().fetchTopics(get().selectedCategory ?? undefined);
+    get().fetchTopics({ category: get().selectedCategory ?? undefined });
   },
 
   fetchCategories: async () => {
@@ -40,18 +49,51 @@ export const useTopicStore = create<TopicState>()((set, get) => ({
     }
   },
 
-  fetchTopics: async (category?: string) => {
+  fetchTopics: async (filters) => {
     set({ isLoading: true, error: null });
     try {
-      const topics = await getTopics(category, get().lang);
-      set({ topics, isLoading: false });
+      const res = await getTopics({
+        ...filters,
+        lang: get().lang,
+        limit: PAGE_SIZE,
+        offset: 0,
+      });
+      set({
+        topics: res.results,
+        totalCount: res.count,
+        hasMore: res.next !== null,
+        isLoading: false,
+      });
     } catch (e: any) {
       set({ error: e.message, isLoading: false });
     }
   },
 
+  fetchNextPage: async () => {
+    const { topics, hasMore, isLoadingMore, isLoading, selectedCategory, lang } = get();
+    if (!hasMore || isLoadingMore || isLoading) return;
+
+    set({ isLoadingMore: true });
+    try {
+      const res = await getTopics({
+        category: selectedCategory ?? undefined,
+        lang,
+        limit: PAGE_SIZE,
+        offset: topics.length,
+      });
+      set({
+        topics: [...topics, ...res.results],
+        totalCount: res.count,
+        hasMore: res.next !== null,
+        isLoadingMore: false,
+      });
+    } catch (e: any) {
+      set({ error: e.message, isLoadingMore: false });
+    }
+  },
+
   setSelectedCategory: (categoryId: string | null) => {
     set({ selectedCategory: categoryId });
-    get().fetchTopics(categoryId ?? undefined);
+    get().fetchTopics({ category: categoryId ?? undefined });
   },
 }));

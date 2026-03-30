@@ -1,3 +1,4 @@
+import Icon from '@/components/ui/Icon';
 import { fonts } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +20,7 @@ export interface ChipItem {
   key: string;
   label: string;
   badge?: number;
+  icon?: string;
 }
 
 interface MorphingChipsProps {
@@ -130,6 +132,9 @@ const ChipTab = memo(function ChipTab({
       onPressOut={() => { scale.value = withTiming(1, { duration: 100 }); }}
       style={[styles.tab, { backgroundColor: tabBg }, rCorners, rScale]}
     >
+      {item.icon && (
+        <Icon name={item.icon} size={12} color={isActive ? activeColor : inactiveColor} style={{ marginRight: 4 }} />
+      )}
       <Text
         style={[
           styles.tabText,

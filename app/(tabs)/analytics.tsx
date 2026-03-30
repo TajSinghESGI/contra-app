@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -23,6 +23,7 @@ import { useProgressionStore } from '@/store/progressionStore';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
 import { AnimatedProgressBar } from '@/components/ui/Progress';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import Icon from '@/components/ui/Icon';
 import { getUserStats, getDebateHistory, isTrialExpired } from '@/services/api';
 import type { UserStats, DebateHistoryEntry } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
@@ -227,13 +228,17 @@ export default function AnalyticsScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [debates, setDebates] = useState<DebateHistoryEntry[]>([]);
 
-  useEffect(() => {
-    if (trialExpired) return;
-    let active = true;
-    getUserStats().then((d) => active && setStats(d)).catch(() => {});
-    getDebateHistory().then((d) => active && setDebates(d.results)).catch(() => {});
-    return () => { active = false; };
-  }, [trialExpired]);
+  useFocusEffect(
+    useCallback(() => {
+      if (trialExpired) return;
+      let active = true;
+      setStats(null);
+      setDebates([]);
+      getUserStats().then((d) => active && setStats(d)).catch(() => {});
+      getDebateHistory().then((d) => active && setDebates(d.results)).catch(() => {});
+      return () => { active = false; };
+    }, [trialExpired])
+  );
 
   const displayDebates = stats?.total_debates ?? totalDebates;
   const avgScore = displayDebates > 0 ? Math.round((stats?.total_score ?? totalScore) / displayDebates) : 0;
@@ -256,7 +261,7 @@ export default function AnalyticsScreen() {
       {/* ── Trial expired lock ── */}
       {trialExpired && (
         <View style={styles.lockedContainer}>
-          <Ionicons name="lock-closed" size={40} color={colors['outline-variant']} />
+          <Icon name="scale" size={40} color={colors['outline-variant']} />
           <Text style={styles.lockedTitle}>{t('analytics.lockedTitle')}</Text>
           <Text style={styles.lockedBody}>{t('analytics.lockedBody')}</Text>
           <Pressable
@@ -264,6 +269,7 @@ export default function AnalyticsScreen() {
             onPress={() => router.push('/paywall' as any)}
             accessibilityRole="button"
           >
+            <Icon name="scale" size={14} color={colors['on-primary']} />
             <Text style={styles.lockedCtaText}>{t('analytics.lockedCta')}</Text>
           </Pressable>
         </View>
@@ -332,7 +338,13 @@ export default function AnalyticsScreen() {
                   key={debate.id}
                   debate={debate}
                   delay={600 + i * 80}
-                  onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
+                  onPress={() => {
+                    if (debate.type === '1v1') {
+                      router.push({ pathname: '/challenge/result/[id]', params: { id: debate.id } });
+                    } else {
+                      router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } });
+                    }
+                  }}
                 />
               ))}
             </View>
@@ -517,6 +529,9 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     lineHeight: fs(22),
   },
   lockedCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
     marginTop: spacing[2],
     backgroundColor: colors.primary,
     borderRadius: radius.full,

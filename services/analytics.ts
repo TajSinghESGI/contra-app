@@ -6,27 +6,50 @@ import { Mixpanel } from 'mixpanel-react-native';
 const MIXPANEL_TOKEN = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN ?? '';
 
 let mixpanel: Mixpanel | null = null;
+let initPromise: Promise<void> | null = null;
 
-export async function initAnalytics(): Promise<void> {
+export function initAnalytics(): void {
   if (!MIXPANEL_TOKEN) {
     console.warn('[Analytics] Missing Mixpanel token');
     return;
   }
-  mixpanel = new Mixpanel(MIXPANEL_TOKEN, true); // true = trackAutomaticEvents
-  await mixpanel.init();
+  if (initPromise) return; // already initializing
+
+  mixpanel = new Mixpanel(MIXPANEL_TOKEN, true);
+  initPromise = mixpanel
+    .init()
+    .then(() => {
+      console.log('[Analytics] Mixpanel initialized');
+    })
+    .catch((err) => {
+      console.error('[Analytics] Mixpanel init failed:', err);
+      mixpanel = null;
+      initPromise = null;
+    });
 }
 
-export function identify(userId: string, properties?: Record<string, any>): void {
-  mixpanel?.identify(userId);
+async function ensureReady(): Promise<Mixpanel | null> {
+  if (initPromise) await initPromise;
+  return mixpanel;
+}
+
+export async function identify(userId: string, properties?: Record<string, any>): Promise<void> {
+  const mp = await ensureReady();
+  if (!mp) return;
+  mp.identify(userId);
   if (properties) {
-    mixpanel?.getPeople().set(properties);
+    mp.getPeople().set(properties);
   }
 }
 
-export function track(event: string, properties?: Record<string, any>): void {
-  mixpanel?.track(event, properties);
+export async function track(event: string, properties?: Record<string, any>): Promise<void> {
+  const mp = await ensureReady();
+  if (!mp) return;
+  mp.track(event, properties);
 }
 
-export function reset(): void {
-  mixpanel?.reset();
+export async function reset(): Promise<void> {
+  const mp = await ensureReady();
+  if (!mp) return;
+  mp.reset();
 }

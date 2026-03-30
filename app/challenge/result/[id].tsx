@@ -19,6 +19,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LiveScoreBar } from '@/components/debate/LiveScoreBar';
@@ -91,6 +92,7 @@ export default function ChallengeResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -278,7 +280,7 @@ export default function ChallengeResultScreen() {
             style={styles.coachingBtn}
             accessibilityRole="button"
           >
-            <Text style={styles.coachingBtnText}>Coaching IA</Text>
+            <Text style={styles.coachingBtnText}>{t('challenge.coaching')}</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>

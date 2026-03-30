@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,39 +10,50 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from '@/components/ui/Icon';
 import { fonts, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const TAB_LABELS: Record<string, string> = {
-  index: 'Feed',
-  arenas: 'Arenas',
-  analytics: 'Stats',
-  profile: 'Profil',
+const TAB_CONFIG: Record<string, { label: string; icon: string; isPng?: boolean }> = {
+  index:     { label: 'Feed',   icon: 'home' },
+  arenas:    { label: 'Arenas', icon: 'swords', isPng: true },
+  friends:   { label: 'Amis',   icon: 'friends' },
+  analytics: { label: 'Stats',  icon: 'chart-line' },
+  profile:   { label: 'Profil', icon: 'settings-gear-filled' },
 };
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const swordsIcon = require('@/assets/illustration/swords.png');
 
 const TIMING = { duration: 280, easing: Easing.bezier(0.4, 0, 0.2, 1) };
 
 // ─── Tab button ──────────────────────────────────────────────────────────────
 
 function TabButton({
-  label,
+  config,
   isActive,
   onPress,
   onLayout,
   styles,
+  activeColor,
+  inactiveColor,
 }: {
-  label: string;
+  config: { label: string; icon: string; isPng?: boolean };
   isActive: boolean;
   onPress: () => void;
   onLayout: (e: LayoutChangeEvent) => void;
   styles: ReturnType<typeof createStyles>;
+  activeColor: string;
+  inactiveColor: string;
 }) {
   const scale = useSharedValue(1);
   const scaleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const iconColor = isActive ? activeColor : inactiveColor;
 
   return (
     <Pressable
@@ -53,21 +64,26 @@ function TabButton({
       hitSlop={4}
     >
       <Animated.View style={[styles.tabInner, scaleStyle]}>
-        <Text
-          style={[
-            styles.tabLabel,
-            isActive ? styles.tabLabelActive : styles.tabLabelInactive,
-          ]}
-        >
-          {label}
-        </Text>
+        {config.isPng ? (
+          <Image
+            source={swordsIcon}
+            style={[styles.pngIcon, { tintColor: iconColor }]}
+            resizeMode="contain"
+          />
+        ) : (
+          <Icon name={config.icon as any} size={18} color={iconColor} />
+        )}
+        {isActive && (
+          <Text style={[styles.tabLabel, styles.tabLabelActive]}>
+            {config.label}
+          </Text>
+        )}
       </Animated.View>
     </Pressable>
   );
 }
 
 // ─── ContraTabBar ────────────────────────────────────────────────────────────
-// Uses BottomTabBarProps from the Tabs navigator for reliable state & navigation.
 
 export function ContraTabBar({ state, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
@@ -86,7 +102,6 @@ export function ContraTabBar({ state, navigation }: BottomTabBarProps) {
     width: pillWidth.value,
   }));
 
-  // Store each tab's measured position; snap pill on first layout (no animation)
   const handleTabLayout = useCallback((index: number, e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout;
     tabMeasurements.current[index] = { x, width };
@@ -95,10 +110,13 @@ export function ContraTabBar({ state, navigation }: BottomTabBarProps) {
       ready.current = true;
       pillX.value = x;
       pillWidth.value = width;
+    } else if (ready.current && index === activeIndex) {
+      // Re-measure after label appears/disappears
+      pillX.value = withTiming(x, TIMING);
+      pillWidth.value = withTiming(width, TIMING);
     }
   }, [activeIndex, pillX, pillWidth]);
 
-  // Animate pill on tab change
   useEffect(() => {
     if (!ready.current) return;
     const m = tabMeasurements.current[activeIndex];
@@ -126,20 +144,23 @@ export function ContraTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 8 }]}>
       <View style={styles.bar}>
-        {/* Sliding active pill */}
         <Animated.View style={[styles.pill, pillStyle]} />
 
-        {/* Tabs */}
-        {state.routes.map((route, i) => (
-          <TabButton
-            key={route.key}
-            label={TAB_LABELS[route.name] ?? route.name}
-            isActive={activeIndex === i}
-            onPress={() => handlePress(i)}
-            onLayout={(e) => handleTabLayout(i, e)}
-            styles={styles}
-          />
-        ))}
+        {state.routes.map((route, i) => {
+          const config = TAB_CONFIG[route.name] ?? { label: route.name, icon: 'home' };
+          return (
+            <TabButton
+              key={route.key}
+              config={config}
+              isActive={activeIndex === i}
+              onPress={() => handlePress(i)}
+              onLayout={(e) => handleTabLayout(i, e)}
+              styles={styles}
+              activeColor={colors.primary}
+              inactiveColor="rgba(255,255,255,0.55)"
+            />
+          );
+        })}
       </View>
     </View>
   );
@@ -177,10 +198,16 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     borderRadius: 999,
   },
   tabInner: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  pngIcon: {
+    width: 18,
+    height: 18,
   },
   tabLabel: {
     fontSize: 13,
@@ -189,9 +216,5 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   tabLabelActive: {
     fontFamily: fonts.semibold,
     color: colors.primary,
-  },
-  tabLabelInactive: {
-    fontFamily: fonts.regular,
-    color: 'rgba(255,255,255,0.55)',
   },
 });

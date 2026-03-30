@@ -7,6 +7,7 @@ import { fonts, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { createDebate } from '@/services/api';
 import { useDebateStore } from '@/store/debateStore';
+import { Toast } from '@/components/ui/Toast';
 import type { DifficultyLevel } from '@/store/debateStore';
 
 export default function NewDebateScreen() {
@@ -31,15 +32,25 @@ export default function NewDebateScreen() {
         const res = await createDebate(topicId || topic, difficulty);
 
         if (!cancelled) {
-          setDebate(res.id, topicId, res.topic, difficulty as DifficultyLevel);
+          setDebate(res.id, topicId, res.topic, difficulty as DifficultyLevel, res.max_turns);
           router.replace({
             pathname: '/debate/[id]',
             params: { id: res.id, topic: res.topic, difficulty },
           });
         }
       } catch (e: any) {
-        console.error('Failed to create debate:', e.message);
-        if (!cancelled) router.back();
+        if (cancelled) return;
+        const code = e.code ?? '';
+        const isGated = ['daily_limit_reached', 'difficulty_locked'].includes(code) || e.message?.includes('expiré') || e.message?.includes('abonnement');
+        Toast.show(
+          e.message ?? t('auth.errors.generic'),
+          {
+            type: 'error',
+            duration: 4000,
+            ...(isGated && { onPress: () => router.push('/paywall') }),
+          },
+        );
+        router.back();
       }
     }
 

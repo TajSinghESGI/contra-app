@@ -1,281 +1,688 @@
-import Icon from '@/components/ui/Icon';
-import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
-import { useTheme } from '@/hooks/useTheme';
-import { useRegisterStore } from '@/store/registerStore';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { track } from '@/services/analytics';
-import { AnalyticsEvents } from '@/services/analyticsEvents';
-import React, { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+
+import Icon from '@/components/ui/Icon';
+import { TypingDots } from '@/components/debate/TypingDots';
+import { fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
+import { useTheme } from '@/hooks/useTheme';
+import { useAuthStore } from '@/store/authStore';
+import { useRegisterStore } from '@/store/registerStore';
+import {
+  apiRegister,
+  checkExists,
+  sendRegisterOtp,
+  verifyRegisterOtp,
+  updateProfile,
+} from '@/services/api';
+import { loginUser } from '@/services/revenuecat';
+import { track, identify } from '@/services/analytics';
+import { AnalyticsEvents } from '@/services/analyticsEvents';
+import { useTopicStore } from '@/store/topicStore';
+import { TopicsBottomSheet } from '@/components/auth/TopicsBottomSheet';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type Step = 'pseudo' | 'email' | 'password' | 'confirm' | 'otp' | 'topics' | 'done';
+
+interface ChatMessage {
+  id: string;
+  role: 'bot' | 'user';
+  text: string;
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export default function RegisterStep1() {
-  const { colors, typography, fs } = useTheme();
-  const { t } = useTranslation();
-  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
+// ─── Main screen ─────────────────────────────────────────────────────────────
+
+export default function RegisterChat() {
+  const { colors, isDark, typography, fs } = useTheme();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useTranslation();
+  const loginAuth = useAuthStore((s) => s.login);
 
-  const { fullName, email, password, setFullName, setEmail, setPassword } = useRegisterStore();
+  // State
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [step, setStep] = useState<Step>('pseudo');
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showTopics, setShowTopics] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Collected data
+  const pseudo = useRef('');
+  const email = useRef('');
+  const password = useRef('');
+
+  const { selectedTopics, toggleTopic } = useRegisterStore();
+  const listRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  const ctaScale = useSharedValue(1);
+  const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: ctaScale.value }] }));
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+
+  const addBotMessage = useCallback((text: string) => {
+    setIsTyping(true);
+    const id = `bot-${Date.now()}`;
+    setTimeout(() => {
+      setMessages((prev) => [...prev, { id, role: 'bot', text }]);
+      setIsTyping(false);
+    }, 800);
+  }, []);
+
+  const addUserMessage = useCallback((text: string) => {
+    const id = `user-${Date.now()}`;
+    setMessages((prev) => [...prev, { id, role: 'user', text }]);
+  }, []);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [messages.length, isTyping]);
+
+  // ─── Initial bot message ─────────────────────────────────────────────────
 
   useEffect(() => {
     track(AnalyticsEvents.SIGNUP_STARTED);
+    addBotMessage(t('auth.register.chat.askPseudo'));
   }, []);
 
-  const nameBorder    = useSharedValue(0);
-  const emailBorder   = useSharedValue(0);
-  const passwordBorder = useSharedValue(0);
-  const ctaScale      = useSharedValue(1);
+  // ─── Step handlers ───────────────────────────────────────────────────────
 
-  const makeBorderStyle = (v: typeof nameBorder) =>
-    useAnimatedStyle(() => ({
-      borderColor: `rgba(43,63,82,${v.value * 0.20})`,
-      borderWidth: 1,
-    }));
+  const handleSend = useCallback(async () => {
+    const text = inputText.trim();
+    if (!text || isLoading) return;
 
-  const nameBorderStyle     = makeBorderStyle(nameBorder);
-  const emailBorderStyle    = makeBorderStyle(emailBorder);
-  const passwordBorderStyle = makeBorderStyle(passwordBorder);
-  const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: ctaScale.value }] }));
+    setError(null);
+    setInputText('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const canContinue =
-    fullName.trim().length > 0 &&
-    isEmailValid &&
-    password.length >= 6;
+    switch (step) {
+      case 'pseudo': {
+        addUserMessage(text);
+        setIsLoading(true);
+        try {
+          const taken = await checkExists('pseudo', text);
+          if (taken) {
+            setError(t('auth.register.chat.pseudoTaken'));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Network error — proceed anyway, backend will catch duplicates
+        }
+        pseudo.current = text;
+        setIsLoading(false);
+        setStep('email');
+        setTimeout(() => addBotMessage(t('auth.register.chat.askEmail', { name: text })), 300);
+        break;
+      }
+      case 'email': {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
+          setError(t('auth.errors.invalidEmail'));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          return;
+        }
+        addUserMessage(text);
+        setIsLoading(true);
+        try {
+          const taken = await checkExists('email', text);
+          if (taken) {
+            setError(t('auth.register.chat.emailTaken'));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // proceed
+        }
+        email.current = text.toLowerCase();
+        setIsLoading(false);
+        setStep('password');
+        setTimeout(() => addBotMessage(t('auth.register.chat.askPassword')), 300);
+        break;
+      }
+      case 'password': {
+        if (text.length < 6) {
+          setError(t('auth.register.chat.passwordTooShort'));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          return;
+        }
+        password.current = text;
+        addUserMessage('••••••••');
+        setStep('confirm');
+        setTimeout(() => addBotMessage(t('auth.register.chat.askConfirmPassword')), 300);
+        break;
+      }
+      case 'confirm': {
+        if (text !== password.current) {
+          setError(t('auth.register.chat.passwordMismatch'));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          return;
+        }
+        addUserMessage('••••••••');
+        // Send OTP
+        setIsTyping(true);
+        try {
+          const devCode = await sendRegisterOtp(email.current);
+          setIsTyping(false);
+          const otpMsg = devCode
+            ? `${t('auth.register.chat.askOtp')} (dev: ${devCode})`
+            : t('auth.register.chat.askOtp');
+          addBotMessage(otpMsg);
+          setStep('otp');
+        } catch (e: any) {
+          setIsTyping(false);
+          if (e.message?.includes('email_exists') || e.message?.includes('409')) {
+            setError(t('auth.errors.emailExists'));
+          } else {
+            setError(t('auth.errors.generic'));
+          }
+        }
+        break;
+      }
+      case 'otp': {
+        const code = text.replace(/\s/g, '');
+        if (code.length !== 6) return;
+        addUserMessage(code);
+        setIsLoading(true);
+        try {
+          await verifyRegisterOtp(email.current, code);
+          addBotMessage(t('auth.register.chat.otpVerified'));
+          setTimeout(() => {
+            addBotMessage(t('auth.register.chat.askTopics'));
+            setStep('topics');
+            setIsLoading(false);
+          }, 1000);
+        } catch {
+          setError(t('auth.errors.invalidCode'));
+          setIsLoading(false);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }, [inputText, step, isLoading, t, addBotMessage, addUserMessage]);
+
+  // ─── Finalize registration ───────────────────────────────────────────────
+
+  const handleFinishRegistration = useCallback(async () => {
+    setIsLoading(true);
+    addBotMessage(t('auth.register.chat.creatingAccount'));
+    try {
+      const res = await apiRegister(email.current, password.current, pseudo.current);
+      await loginAuth(res.token, res.refresh, res.user);
+      await loginUser(res.user.id);
+      identify(res.user.id, { email: res.user.email, name: res.user.pseudo });
+      track(AnalyticsEvents.SIGNUP_COMPLETED, { topicCount: selectedTopics.length });
+
+      if (selectedTopics.length > 0) {
+        await updateProfile({ selected_topics: selectedTopics });
+      }
+      useTopicStore.getState().setLang(res.user.language ?? 'fr');
+      useRegisterStore.getState().reset();
+
+      setTimeout(() => {
+        addBotMessage(t('auth.register.chat.welcome', { name: pseudo.current }));
+        setStep('done');
+        setIsLoading(false);
+      }, 500);
+    } catch (e: any) {
+      setIsLoading(false);
+      if (e.message?.includes('email') || e.message?.includes('exists')) {
+        setError(t('auth.errors.emailExists'));
+      } else {
+        setError(t('auth.errors.generic'));
+      }
+    }
+  }, [selectedTopics, t, loginAuth, addBotMessage]);
+
+  // ─── Input config per step ───────────────────────────────────────────────
+
+  const inputConfig = useMemo(() => {
+    const c = t('auth.register.chat', { returnObjects: true }) as Record<string, string>;
+    switch (step) {
+      case 'pseudo': return { placeholder: c.pseudoPlaceholder, keyboard: 'default' as const, secure: false, autoCapitalize: 'words' as const };
+      case 'email': return { placeholder: c.emailPlaceholder, keyboard: 'email-address' as const, secure: false, autoCapitalize: 'none' as const };
+      case 'password': return { placeholder: c.passwordPlaceholder, keyboard: 'default' as const, secure: true, autoCapitalize: 'none' as const };
+      case 'confirm': return { placeholder: c.confirmPlaceholder, keyboard: 'default' as const, secure: true, autoCapitalize: 'none' as const };
+      case 'otp': return { placeholder: c.otpPlaceholder, keyboard: 'number-pad' as const, secure: false, autoCapitalize: 'none' as const };
+      default: return null;
+    }
+  }, [step, t]);
+
+  const canSend = inputText.trim().length > 0 && !isLoading;
+
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-    >
-      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Icon name="chevron-left" size={22} color={colors['on-surface']} />
-        </Pressable>
-        <StepDots current={0} />
-        <View style={styles.backBtn} />
-      </View>
+    <View style={styles.root}>
+      {/* Header */}
+      {isDark ? (
+        <View style={[styles.header, styles.headerSolid, { paddingTop: insets.top }]}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Icon name="chevron-left" size={22} color={colors['on-surface']} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
+          <View style={{ width: 22 }} />
+        </View>
+      ) : (
+        <BlurView intensity={80} tint="light" style={[styles.header, { paddingTop: insets.top }]}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Icon name="chevron-left" size={22} color={colors['on-surface']} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{t('common.appName')}</Text>
+          <View style={{ width: 22 }} />
+        </BlurView>
+      )}
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing[8] }]}
-        keyboardShouldPersistTaps="handled"
+      {/* Messages */}
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(m) => m.id}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 64 }]}
         showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
-          <Animated.Text entering={FadeInDown.delay(60).duration(400).springify()} style={styles.stepLabel}>{t('auth.step', { current: 1, total: 3 })}</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(100).duration(400).springify()} style={styles.title}>{t('auth.createAccount')}</Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(140).duration(400).springify()} style={styles.subtitle}>{t('auth.createAccountSub')}</Animated.Text>
+        renderItem={({ item }) =>
+          item.role === 'bot' ? (
+            <BotBubble text={item.text} colors={colors} fs={fs} />
+          ) : (
+            <UserBubble text={item.text} colors={colors} fs={fs} />
+          )
+        }
+        ListFooterComponent={
+          isTyping ? (
+            <View style={styles.botBubble}>
+              <TypingDots />
+            </View>
+          ) : null
+        }
+      />
 
-          <Animated.View entering={FadeInDown.delay(180).duration(400).springify()}>
-            <Text style={styles.fieldLabel}>{t('auth.fullNameLabel')}</Text>
-            <Animated.View style={[styles.inputWrapper, nameBorderStyle]}>
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder={t('auth.fullNamePlaceholder')}
-                placeholderTextColor={colors['outline-variant']}
-                autoCapitalize="words"
-                autoCorrect={false}
-                onFocus={() => { nameBorder.value = withTiming(1, { duration: 200 }); }}
-                onBlur={() => { nameBorder.value = withTiming(0, { duration: 200 }); }}
-              />
-            </Animated.View>
-          </Animated.View>
+      {/* Bottom input / action area */}
+      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+          {error && (
+            <Animated.Text entering={FadeInDown.duration(200)} style={styles.errorText}>
+              {error}
+            </Animated.Text>
+          )}
 
-          <Animated.View entering={FadeInDown.delay(220).duration(400).springify()} style={{ marginTop: spacing[4] }}>
-            <Text style={styles.fieldLabel}>{t('auth.emailLabel')}</Text>
-            <Animated.View style={[styles.inputWrapper, emailBorderStyle]}>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder={t('auth.emailPlaceholder')}
-                placeholderTextColor={colors['outline-variant']}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                onFocus={() => { emailBorder.value = withTiming(1, { duration: 200 }); }}
-                onBlur={() => { emailBorder.value = withTiming(0, { duration: 200 }); }}
-              />
-            </Animated.View>
-          </Animated.View>
+          {/* Text input steps */}
+          {inputConfig && (
+            <View style={styles.inputRow}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  value={inputText}
+                  onChangeText={(v) => { setInputText(v); setError(null); }}
+                  placeholder={inputConfig.placeholder}
+                  placeholderTextColor={colors['outline-variant']}
+                  keyboardType={inputConfig.keyboard}
+                  secureTextEntry={inputConfig.secure && !showPassword}
+                  autoCapitalize={inputConfig.autoCapitalize}
+                  autoCorrect={false}
+                  onSubmitEditing={handleSend}
+                  returnKeyType="send"
+                  maxLength={step === 'otp' ? 6 : 100}
+                />
+                {inputConfig.secure && (
+                  <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={8} style={styles.eyeBtn}>
+                    <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors['outline-variant']} />
+                  </Pressable>
+                )}
+              </View>
+              <Pressable onPress={handleSend} disabled={!canSend}>
+                <LinearGradient
+                  colors={[colors.primary, colors['primary-dim']]}
+                  style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+                >
+                  <Icon name="arrow-right" size={16} color={colors['on-primary']} style={{ transform: [{ rotate: '-90deg' }] }} />
+                </LinearGradient>
+              </Pressable>
+            </View>
+          )}
 
-          <Animated.View entering={FadeInDown.delay(260).duration(400).springify()} style={{ marginTop: spacing[4] }}>
-            <Text style={styles.fieldLabel}>{t('auth.passwordLabel')}</Text>
-            <Animated.View style={[styles.inputWrapper, passwordBorderStyle]}>
-              <TextInput
-                style={[styles.input, { paddingRight: spacing[2] }]}
-                value={password}
-                onChangeText={setPassword}
-                placeholder={t('auth.passwordPlaceholder')}
-                placeholderTextColor={colors['outline-variant']}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                onFocus={() => { passwordBorder.value = withTiming(1, { duration: 200 }); }}
-                onBlur={() => { passwordBorder.value = withTiming(0, { duration: 200 }); }}
-              />
-              <Pressable
-                style={styles.eyeBtn}
-                onPress={() => setShowPassword((p) => !p)}
-                hitSlop={8}
+          {/* Topics step: two buttons */}
+          {step === 'topics' && !isLoading && (
+            <View style={styles.actionRow}>
+              <AnimatedPressable
+                style={[styles.actionBtn, ctaStyle]}
+                onPressIn={() => { ctaScale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); }}
+                onPressOut={() => { ctaScale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+                onPress={() => setShowTopics(true)}
               >
-                <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors['outline-variant']} />
-              </Pressable>
-            </Animated.View>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
-          <AnimatedPressable
-            style={[styles.ctaWrapper, ctaStyle, !canContinue && styles.ctaDisabled]}
-            onPressIn={() => { if (canContinue) ctaScale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); }}
-            onPressOut={() => { ctaScale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
-            onPress={canContinue ? () => router.push('/auth/register/topics') : undefined}
-          >
-            <LinearGradient
-              colors={[colors.primary, colors['primary-dim']]}
-              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-              style={styles.ctaGradient}
-            >
-              <Text style={styles.ctaText}>{t('common.continue')}</Text>
-            </LinearGradient>
-          </AnimatedPressable>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(340).duration(400).springify()}>
-            <Text style={styles.terms}>
-              {t('auth.termsNotice')}{' '}
-              <Text style={styles.termsLink}>{t('auth.terms')}</Text>
-              {' '}{t('auth.and')}{' '}
-              <Text style={styles.termsLink}>{t('auth.privacy')}</Text>
-            </Text>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>{t('common.orContinueWith')}</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.socialRow}>
-              <Pressable style={styles.socialBtn}>
-                <Text style={styles.googleG}>G</Text>
-                <Text style={styles.socialBtnText}>{t('auth.google')}</Text>
-              </Pressable>
-              <Pressable style={styles.socialBtn}>
-                <Ionicons name="logo-github" size={18} color={colors['on-surface']} />
-                <Text style={styles.socialBtnText}>{t('auth.github')}</Text>
+                <LinearGradient
+                  colors={[colors.primary, colors['primary-dim']]}
+                  style={styles.actionBtnGradient}
+                >
+                  <Text style={styles.actionBtnText}>{t('auth.register.chat.chooseTopics')}</Text>
+                </LinearGradient>
+              </AnimatedPressable>
+              <Pressable
+                style={styles.skipBtn}
+                onPress={() => {
+                  addUserMessage(t('auth.register.chat.skipTopics'));
+                  handleFinishRegistration();
+                }}
+              >
+                <Text style={styles.skipBtnText}>{t('auth.register.chat.skipTopics')}</Text>
               </Pressable>
             </View>
+          )}
 
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>{t('auth.alreadyHaveAccount')} </Text>
-              <Pressable onPress={() => router.replace('/auth/login')} hitSlop={8}>
-                <Text style={styles.footerLink}>{t('auth.login')}</Text>
+          {/* Done step: go to app or paywall */}
+          {step === 'done' && (
+            <View style={styles.actionRow}>
+              <AnimatedPressable
+                style={[styles.actionBtn, ctaStyle]}
+                onPressIn={() => { ctaScale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); }}
+                onPressOut={() => { ctaScale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+                onPress={() => router.replace('/(tabs)')}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors['primary-dim']]}
+                  style={styles.actionBtnGradient}
+                >
+                  <Text style={styles.actionBtnText}>{t('auth.register.chat.startDebating')}</Text>
+                </LinearGradient>
+              </AnimatedPressable>
+              <Pressable
+                style={styles.skipBtn}
+                onPress={() => router.push('/paywall')}
+              >
+                <Text style={styles.skipBtnText}>{t('auth.register.chat.tryPro')}</Text>
               </Pressable>
             </View>
-          </Animated.View>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          )}
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>{t('auth.alreadyHaveAccount')} </Text>
+            <Pressable onPress={() => router.replace('/auth/login')} hitSlop={8}>
+              <Text style={styles.footerLink}>{t('auth.login')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardStickyView>
+
+      {/* Topics bottom sheet */}
+      <TopicsBottomSheet
+        visible={showTopics}
+        onClose={() => setShowTopics(false)}
+        onDone={() => {
+          setShowTopics(false);
+          if (selectedTopics.length > 0) {
+            addUserMessage(t('auth.register.chat.topicsSelected', { count: selectedTopics.length }));
+          }
+          handleFinishRegistration();
+        }}
+        selectedTopics={selectedTopics}
+        toggleTopic={toggleTopic}
+      />
+    </View>
   );
 }
 
-// ─── Shared step dots ─────────────────────────────────────────────────────────
+// ─── Chat bubbles ──────────────────────────────────────────────────────────
+
+function BotBubble({ text, colors, fs }: { text: string; colors: ColorTokens; fs: (n: number) => number }) {
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(300)}
+      style={{
+        alignSelf: 'flex-start',
+        maxWidth: '88%',
+        backgroundColor: colors['accent-ai-container'],
+        borderRadius: radius['2xl'],
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+      }}
+    >
+      <Text style={{
+        fontFamily: fonts.bold,
+        fontSize: 9,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        color: colors['accent-ai'],
+        marginBottom: spacing[2],
+      }}>
+        CONTRA
+      </Text>
+      <Text style={{
+        fontFamily: fonts.regular,
+        fontSize: fs(17),
+        lineHeight: fs(26),
+        color: colors['on-surface'],
+      }}>
+        {text}
+      </Text>
+    </Animated.View>
+  );
+}
+
+function UserBubble({ text, colors, fs }: { text: string; colors: ColorTokens; fs: (n: number) => number }) {
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(280)}
+      style={{
+        alignSelf: 'flex-end',
+        maxWidth: '80%',
+        backgroundColor: colors['accent-user-container'],
+        borderRadius: radius['2xl'],
+        paddingHorizontal: spacing[4],
+        paddingVertical: spacing[3],
+      }}
+    >
+      <Text style={{
+        fontFamily: fonts.regular,
+        fontSize: fs(16),
+        lineHeight: fs(26),
+        color: colors['on-surface'],
+        textAlign: 'right',
+      }}>
+        {text}
+      </Text>
+    </Animated.View>
+  );
+}
+
+// ─── Shared step dots (kept for backward compat with topics/level screens) ─
 
 export function StepDots({ current }: { current: number }) {
-  const { colors, typography, fs } = useTheme();
-  const sharedStyles = useMemo(() => createSharedStyles(colors, typography, fs), [colors, typography, fs]);
+  const { colors } = useTheme();
   return (
-    <View style={sharedStyles.dotsRow}>
+    <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
       {[0, 1, 2].map((i) => (
-        <View key={i} style={[sharedStyles.dot, i === current && sharedStyles.dotActive]} />
+        <View
+          key={i}
+          style={{
+            width: i === current ? 20 : 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: i === current ? colors.primary : colors['surface-container-highest'],
+          }}
+        />
       ))}
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+export { createSharedStyles } from './sharedStyles';
 
-export const createSharedStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing[5], paddingBottom: spacing[3],
-    backgroundColor: colors.background,
-  },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  dotsRow: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors['surface-container-highest'] },
-  dotActive: { width: 20, backgroundColor: colors.primary },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: spacing[4] },
-  card: {
-    backgroundColor: colors['surface-container-lowest'], borderRadius: 32, padding: spacing[7],
-    ...shadows.ambient,
-  },
-  stepLabel: {
-    ...typography['label-md'],
-    color: colors.outline,
-    marginBottom: spacing[2],
-  },
-  title: { ...typography['headline-md'], color: colors['on-surface'], marginBottom: 6 },
-  subtitle: { ...typography['body-sm'], color: colors['on-surface-variant'], marginBottom: spacing[6] },
-  fieldLabel: { fontFamily: fonts.semibold, fontSize: fs(13), color: colors['on-surface'], marginBottom: spacing[2] },
-  inputWrapper: {
-    backgroundColor: colors['surface-container-low'], borderRadius: radius.lg,
-    flexDirection: 'row', alignItems: 'center', borderColor: 'transparent',
-  },
-  input: { flex: 1, paddingHorizontal: spacing[4], paddingVertical: 14, fontFamily: fonts.regular, fontSize: fs(15), color: colors['on-surface'] },
-  eyeBtn: { paddingHorizontal: 14, paddingVertical: 14 },
-  ctaWrapper: {
-    marginTop: spacing[6], borderRadius: radius.full,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10, shadowRadius: 24, elevation: 3,
-  },
-  ctaDisabled: { opacity: 0.5, shadowOpacity: 0 },
-  ctaGradient: { borderRadius: radius.full, height: 52, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-primary'], letterSpacing: 0.5 },
-});
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => number) => StyleSheet.create({
-  ...createSharedStyles(colors, typography, fs),
-  terms: { fontFamily: fonts.regular, fontSize: fs(12), color: colors['on-surface-variant'], textAlign: 'center', marginTop: spacing[3], lineHeight: fs(18) },
-  termsLink: { fontFamily: fonts.bold, color: colors['on-surface'] },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing[5] },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors['surface-container-high'] },
-  dividerText: { fontFamily: fonts.semibold, fontSize: fs(11), color: colors['outline-variant'], letterSpacing: 1, paddingHorizontal: spacing[3] },
-  socialRow: { flexDirection: 'row', gap: 10 },
-  socialBtn: {
-    flex: 1, backgroundColor: colors['surface-container-low'], borderRadius: radius.lg, height: spacing[12],
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  googleG: { fontFamily: fonts.bold, fontSize: fs(15), color: '#4285F4' },
-  socialBtnText: { fontFamily: fonts.medium, fontSize: fs(14), color: colors['on-surface'] },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: spacing[5] },
-  footerText: { fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'] },
-  footerLink: { fontFamily: fonts.bold, fontSize: fs(14), color: colors['on-surface'] },
+
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[3],
+    backgroundColor: colors.glass,
+    borderBottomWidth: 1,
+    borderBottomColor: colors['glass-border'],
+  },
+  headerSolid: {
+    backgroundColor: colors['surface-container-low'],
+  },
+  headerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(16),
+    letterSpacing: -0.3,
+    color: colors['on-surface'],
+  },
+
+  listContent: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: 20,
+    gap: 16,
+  },
+  botBubble: {
+    alignSelf: 'flex-start',
+    maxWidth: '88%',
+    backgroundColor: colors['accent-ai-container'],
+    borderRadius: radius['2xl'],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+
+  bottomBar: {
+    paddingHorizontal: spacing[3],
+    paddingTop: spacing[2],
+  },
+  errorText: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors.error,
+    marginBottom: spacing[1],
+    paddingHorizontal: spacing[2],
+  },
+
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    backgroundColor: colors['surface-container'],
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: colors['glass-border'],
+  },
+  input: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: spacing[5],
+    fontFamily: fonts.regular,
+    fontSize: fs(15),
+    color: colors['on-surface'],
+  },
+  eyeBtn: {
+    paddingHorizontal: spacing[3],
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: {
+    opacity: 0.35,
+  },
+
+  actionRow: {
+    gap: spacing[3],
+  },
+  actionBtn: {
+    borderRadius: radius.full,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
+    elevation: 3,
+  },
+  actionBtnGradient: {
+    borderRadius: radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-primary'],
+    letterSpacing: 0.5,
+  },
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing[2],
+  },
+  skipBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors.primary,
+  },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing[2],
+  },
+  footerText: {
+    fontFamily: fonts.regular,
+    fontSize: fs(14),
+    color: colors['on-surface-variant'],
+  },
+  footerLink: {
+    fontFamily: fonts.bold,
+    fontSize: fs(14),
+    color: colors['on-surface'],
+  },
 });

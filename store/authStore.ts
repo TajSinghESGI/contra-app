@@ -1,12 +1,22 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import type { AuthUser } from '@/services/api';
+import i18n from '@/i18n';
+import { useTopicStore } from '@/store/topicStore';
 
 const TOKEN_KEY = 'contra_auth_token';
 const REFRESH_KEY = 'contra_refresh_token';
 const USER_KEY = 'contra_user';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.contra-app.cloud';
+
+function syncLanguage(user: AuthUser | null) {
+  const lang = user?.language ?? 'fr';
+  if (i18n.language !== lang) {
+    i18n.changeLanguage(lang);
+    useTopicStore.getState().setLang(lang);
+  }
+}
 
 interface AuthState {
   isLogged: boolean;
@@ -79,6 +89,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         if (res.ok) {
           const freshUser: AuthUser = await res.json();
           await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));
+          syncLanguage(freshUser);
           set({ isLogged: true, token, refreshToken, user: freshUser, isHydrated: true });
           return;
         }
@@ -87,6 +98,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       }
 
       const user: AuthUser | null = userJson ? JSON.parse(userJson) : null;
+      syncLanguage(user);
       set({ isLogged: !!token, token, refreshToken, user, isHydrated: true });
     } catch {
       set({ isLogged: false, token: null, refreshToken: null, user: null, isHydrated: true });

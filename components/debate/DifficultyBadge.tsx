@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { DIFFICULTY_LEVELS, radius, type ColorTokens } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, radius, fonts, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'brutal';
@@ -27,8 +27,8 @@ function getLabelForLevel(level: DifficultyLevel): string {
 export const DifficultyBadge = memo(function DifficultyBadge({
   level,
 }: DifficultyBadgeProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fs), [colors, fs]);
   const { backgroundColor, color } = getBadgeStyles(level, colors);
   const label = getLabelForLevel(level);
 
@@ -39,7 +39,7 @@ export const DifficultyBadge = memo(function DifficultyBadge({
   );
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, fs: (size: number) => number) => StyleSheet.create({
   badge: {
     borderRadius: radius.full,
     paddingHorizontal: 10,
@@ -47,8 +47,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   label: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: fs(11),
+    fontFamily: fonts.semibold,
     letterSpacing: 0.5,
   },
 });

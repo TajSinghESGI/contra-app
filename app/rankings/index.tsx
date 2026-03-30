@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   Pressable,
   Animated,
@@ -28,6 +29,7 @@ interface RankingEntry {
   rank: number;
   initial: string;
   avatarBg: string;
+  avatarUrl: string | null;
   name: string;
   title: string;
   score: number;
@@ -45,6 +47,7 @@ function mapApiRanking(entry: APIRankingEntry, currentUserId: string | undefined
     rank: entry.rank,
     initial: entry.displayName.charAt(0).toUpperCase(),
     avatarBg: AVATAR_COLORS[(entry.rank - 1) % AVATAR_COLORS.length],
+    avatarUrl: entry.avatarUrl,
     name: entry.displayName,
     title: entry.title,
     score: entry.score,
@@ -102,9 +105,16 @@ function RankingRow({ entry, onPress }: { entry: RankingEntry; onPress: () => vo
           entry.rank === 1 && styles.rankAvatarFirst,
         ]}
       >
-        <Text style={[styles.rankAvatarInitial, isTop3 && styles.rankAvatarInitialLarge]}>
-          {entry.initial}
-        </Text>
+        {entry.avatarUrl ? (
+          <Image
+            source={{ uri: entry.avatarUrl }}
+            style={{ width: avatarSize, height: avatarSize, borderRadius: avatarRadius }}
+          />
+        ) : (
+          <Text style={[styles.rankAvatarInitial, isTop3 && styles.rankAvatarInitialLarge]}>
+            {entry.initial}
+          </Text>
+        )}
       </View>
 
       <View style={styles.rankInfo}>
@@ -272,7 +282,7 @@ export default function RankingsScreen() {
 
       {trialExpired ? (
         <View style={styles.lockedContainer}>
-          <Ionicons name="lock-closed" size={40} color={colors['outline-variant']} />
+          <Icon name="scale" size={40} color={colors['outline-variant']} />
           <Text style={styles.lockedTitle}>{t('rankings.lockedTitle')}</Text>
           <Text style={styles.lockedBody}>{t('rankings.lockedBody')}</Text>
           <Pressable
@@ -280,6 +290,7 @@ export default function RankingsScreen() {
             onPress={() => router.push('/paywall' as any)}
             accessibilityRole="button"
           >
+            <Icon name="scale" size={14} color={colors['on-primary']} />
             <Text style={styles.lockedCtaText}>{t('rankings.lockedCta')}</Text>
           </Pressable>
         </View>
@@ -580,6 +591,9 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     lineHeight: fs(22),
   },
   lockedCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
     marginTop: spacing[2],
     backgroundColor: colors.primary,
     borderRadius: radius.full,

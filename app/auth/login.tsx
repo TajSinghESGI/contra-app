@@ -67,13 +67,13 @@ export default function LoginScreen() {
   }, []);
 
   const emailBorderStyle = useAnimatedStyle(() => ({
-    borderColor: emailError ? colors.error : `rgba(43, 63, 82, ${emailBorderOpacity.value * 0.20})`,
+    borderColor: emailError ? colors.error : `rgba(27, 33, 26, ${emailBorderOpacity.value * 0.20})`,
     borderWidth: emailError ? 1 : emailBorderOpacity.value,
     transform: [{ translateX: shakeEmail.value }],
   }));
 
   const passwordBorderStyle = useAnimatedStyle(() => ({
-    borderColor: passwordError ? colors.error : `rgba(43, 63, 82, ${passwordBorderOpacity.value * 0.20})`,
+    borderColor: passwordError ? colors.error : `rgba(27, 33, 26, ${passwordBorderOpacity.value * 0.20})`,
     borderWidth: passwordError ? 1 : passwordBorderOpacity.value,
     transform: [{ translateX: shakePassword.value }],
   }));
@@ -98,7 +98,7 @@ export default function LoginScreen() {
       const res = await apiLogin(email.trim(), password);
       await login(res.token, res.refresh, res.user);
       await loginUser(res.user.id);
-      identify(res.user.id, { email: res.user.email, name: res.user.full_name });
+      identify(res.user.id, { email: res.user.email, name: res.user.pseudo });
       track(AnalyticsEvents.LOGIN);
       // Sync language preference
       useTopicStore.getState().setLang(res.user.language ?? 'fr');
@@ -157,12 +157,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.passwordFieldGroup}>
-            <View style={styles.passwordLabelRow}>
-              <Text style={styles.fieldLabel}>{t('auth.passwordLabel')}</Text>
-              <Pressable hitSlop={8} onPress={() => router.push('/auth/forgot-password')} accessibilityRole="button">
-                <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
-              </Pressable>
-            </View>
+            <Text style={styles.fieldLabel}>{t('auth.passwordLabel')}</Text>
             <Animated.View style={[styles.inputWrapper, passwordBorderStyle]}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
@@ -186,6 +181,9 @@ export default function LoginScreen() {
               </Pressable>
             </Animated.View>
             {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
+            <Pressable hitSlop={8} onPress={() => router.push('/auth/forgot-password')} accessibilityRole="button" style={styles.forgotPasswordRow}>
+              <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
+            </Pressable>
           </View>
 
           <AnimatedPressable
@@ -215,21 +213,6 @@ export default function LoginScreen() {
             </LinearGradient>
           </AnimatedPressable>
 
-          <View style={styles.dividerRow}>
-            <Text style={styles.dividerText}>{t('common.or')}</Text>
-          </View>
-
-          <View style={styles.socialRow}>
-            <Pressable style={styles.socialButton} accessibilityRole="button">
-              <Text style={styles.googleG}>G</Text>
-              <Text style={styles.socialButtonText}>{t('auth.google')}</Text>
-            </Pressable>
-            <Pressable style={styles.socialButton} accessibilityRole="button">
-              <Text style={styles.appleIcon}>{'\uF8FF'}</Text>
-              <Text style={styles.socialButtonText}>{t('auth.apple')}</Text>
-            </Pressable>
-          </View>
-
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>{t('auth.noAccount')} </Text>
             <Pressable onPress={() => router.push('/auth/register')} hitSlop={8} accessibilityRole="button">
@@ -257,14 +240,14 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
 
   logoContainer: { alignItems: 'center', marginBottom: spacing[6] },
   logoBadge: {
-    width: spacing[16],
-    height: spacing[16],
-    borderRadius: radius['2xl'],
+    width: spacing[20],
+    height: spacing[20],
+    borderRadius: radius['3xl'],
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoImage: { width: 84, height: 84 },
+  logoImage: { width: 100, height: 100 },
 
   cardTitle: {
     ...typography['headline-md'],
@@ -282,10 +265,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   fieldGroup: { marginBottom: 0 },
   passwordFieldGroup: { marginTop: spacing[4] },
   fieldLabel: { fontFamily: fonts.semibold, fontSize: fs(13), color: colors['on-surface'], marginBottom: spacing[2] },
-  passwordLabelRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: spacing[2],
-  },
+  forgotPasswordRow: { alignSelf: 'flex-end', marginTop: spacing[2] },
   forgotPassword: { fontFamily: fonts.semibold, fontSize: fs(12), color: colors.primary },
   inputWrapper: {
     backgroundColor: colors['surface-container-low'], borderRadius: radius.lg,
@@ -315,24 +295,9 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   ctaGradient: { borderRadius: radius.full, height: 52, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontFamily: fonts.semibold, fontSize: fs(15), color: colors['on-primary'], letterSpacing: 0.5 },
 
-  dividerRow: { alignItems: 'center', marginVertical: spacing[5] },
-  dividerText: {
-    fontFamily: fonts.semibold, fontSize: fs(11), color: colors['outline-variant'],
-    letterSpacing: 1,
-  },
-
-  socialRow: { flexDirection: 'row', gap: spacing[3] },
-  socialButton: {
-    flex: 1, backgroundColor: colors['surface-container-low'], borderRadius: radius.lg, height: spacing[12],
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
-  },
-  googleG: { fontFamily: fonts.bold, fontSize: fs(15), color: '#4285F4' },
-  appleIcon: { fontSize: fs(16), color: colors['on-surface'] },
-  socialButtonText: { fontFamily: fonts.medium, fontSize: fs(14), color: colors['on-surface'] },
-
   footerRow: {
     flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', marginTop: spacing[5],
+    alignItems: 'center', marginTop: spacing[6],
   },
   footerText: { fontFamily: fonts.regular, fontSize: fs(14), color: colors['on-surface-variant'] },
   footerLink: { fontFamily: fonts.bold, fontSize: fs(14), color: colors['on-surface'] },

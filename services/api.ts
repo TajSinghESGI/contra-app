@@ -19,8 +19,17 @@ export interface Topic {
   is_active: boolean;
   is_topic_of_day: boolean;
   participant_count: number;
+  is_public: boolean;
+  created_by_name: string | null;
   expires_at: string;
   created_at: string;
+}
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
 }
 
 export interface RankingEntry {
@@ -49,7 +58,7 @@ function getAuthToken(): string | null {
 export interface AuthUser {
   id: string;
   email: string;
-  full_name: string;
+  pseudo: string;
   initial: string;
   avatar_bg: string;
   avatar_url: string;
@@ -103,11 +112,32 @@ export async function apiLogin(email: string, password: string): Promise<AuthRes
 export async function apiRegister(
   email: string,
   password: string,
-  fullName: string,
+  pseudo: string,
 ): Promise<AuthResponse> {
   return apiFetch<AuthResponse>('/api/auth/register/', {
     method: 'POST',
-    body: { email, password, full_name: fullName },
+    body: { email, password, pseudo },
+  });
+}
+
+export async function checkExists(field: 'email' | 'pseudo', value: string): Promise<boolean> {
+  const params = `field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
+  const res = await apiFetch<{ exists: boolean }>(`/api/auth/check-exists/?${params}`);
+  return res.exists;
+}
+
+export async function sendRegisterOtp(email: string): Promise<string | null> {
+  const res = await apiFetch<{ detail: string; code?: string }>('/api/auth/send-register-otp/', {
+    method: 'POST',
+    body: { email },
+  });
+  return res.code ?? null;
+}
+
+export async function verifyRegisterOtp(email: string, code: string): Promise<{ verified: boolean }> {
+  return apiFetch('/api/auth/verify-register-otp/', {
+    method: 'POST',
+    body: { email, code },
   });
 }
 
@@ -116,7 +146,7 @@ export async function getProfile(): Promise<AuthUser> {
 }
 
 export async function updateProfile(data: Partial<{
-  full_name: string;
+  pseudo: string;
   default_difficulty: string;
   selected_topics: string[];
   language: string;
@@ -205,13 +235,17 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     let errorMessage = `API error ${response.status}: ${response.statusText}`;
+    let errorCode = '';
     try {
-      const errorBody = (await response.json()) as { detail?: string; message?: string };
+      const errorBody = (await response.json()) as { detail?: string; message?: string; code?: string };
       errorMessage = errorBody.detail ?? errorBody.message ?? errorMessage;
+      errorCode = errorBody.code ?? '';
     } catch {
       // Ignore JSON parse errors on error responses
     }
-    throw new Error(errorMessage);
+    const err = new Error(errorMessage) as Error & { code?: string };
+    err.code = errorCode;
+    throw err;
   }
 
   // 204 No Content — no body to parse
@@ -226,12 +260,26 @@ async function apiFetch<T>(
 // Topics
 // ---------------------------------------------------------------------------
 
-export async function getTopics(category?: string, lang?: string): Promise<Topic[]> {
+export interface TopicFilters {
+  category?: string;
+  search?: string;
+  lang?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function getTopics(filters: TopicFilters = {}): Promise<PaginatedResponse<Topic>> {
   const params = new URLSearchParams();
-  if (category) params.set('category', category);
-  if (lang) params.set('lang', lang);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiFetch<Topic[]>(`/api/topics/${query}`);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.search) params.set('search', filters.search);
+  if (filters.lang) params.set('lang', filters.lang);
+  params.set('limit', String(filters.limit ?? 20));
+  params.set('offset', String(filters.offset ?? 0));
+  return apiFetch<PaginatedResponse<Topic>>(`/api/topics/?${params.toString()}`);
+}
+
+export async function proposeTopic(data: { question: string; category: string; description?: string; is_public: boolean }): Promise<{ id: string; question: string }> {
+  return apiFetch('/api/topics/propose/', { method: 'POST', body: data });
 }
 
 export interface Category {
@@ -253,6 +301,7 @@ export async function getCategories(lang?: string): Promise<Category[]> {
 interface CreateDebateResponse {
   id: string;
   topic: string;
+  max_turns: number;
 }
 
 export async function createDebate(
@@ -335,6 +384,10 @@ export async function abandonDebate(debateId: string): Promise<void> {
   await apiFetch(`/api/debates/${debateId}/abandon/`, { method: 'POST' });
 }
 
+export async function stopDebate(debateId: string): Promise<void> {
+  await apiFetch(`/api/debates/${debateId}/stop/`, { method: 'POST' });
+}
+
 export interface DebateDetailMessage {
   id: string;
   role: 'user' | 'ai';
@@ -380,6 +433,8 @@ export interface UserStats {
     evidence: number;
     originality: number;
   };
+  daily_used: number;
+  daily_limit: number | null;
 }
 
 export async function getUserStats(): Promise<UserStats> {
@@ -585,7 +640,7 @@ export async function sendChallengeMessage(challengeId: string, content: string)
 // ---------------------------------------------------------------------------
 
 export interface ChallengeCoaching {
-  strengths: string[];
+  strengths: { name: string; score: number }[];
   improvements: string[];
   tip: string;
 }
@@ -633,9 +688,10 @@ export interface PublicProfile {
     title: string;
     score: number;
     rank: number;
+    totalDebates: number;
   };
   recent_debates: PublicProfileDebate[];
-  strengths: string[];
+  strengths: { name: string; score: number }[];
 }
 
 export async function getPublicProfile(userId: string): Promise<PublicProfile> {

@@ -412,7 +412,7 @@ function ChallengeRow({
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-type TabKey = 'friends' | 'requests' | 'challenges';
+type TabKey = 'friends' | 'requests' | 'challenges' | 'rankings';
 
 export default function FriendsScreen() {
   const router = useRouter();
@@ -477,7 +477,11 @@ export default function FriendsScreen() {
 
   const handleChallenge = useCallback((friend: Friend) => {
     if (isTrialExpired(user)) {
-      router.push('/paywall' as any);
+      Toast.show(t('friends.challengeProOnly'), {
+        type: 'error',
+        duration: 4000,
+        onPress: () => router.push('/paywall'),
+      });
       return;
     }
     present(
@@ -545,19 +549,30 @@ export default function FriendsScreen() {
     [friendRequests],
   );
 
-  const TAB_KEYS: TabKey[] = ['friends', 'requests', 'challenges'];
+  const TAB_KEYS: TabKey[] = ['friends', 'requests', 'challenges', 'rankings'];
+
+  const isFree = user?.subscription_tier === 'free';
 
   const chipItems = useMemo(() => [
     { key: 'friends', label: t('friends.tabs.friends') },
     { key: 'requests', label: t('friends.tabs.requests'), badge: incomingCount },
-    { key: 'challenges', label: t('friends.tabs.challenges') },
-  ], [t, incomingCount]);
+    { key: 'challenges', label: t('friends.tabs.challenges'), ...(isFree && { icon: 'scale' }) },
+    { key: 'rankings', label: t('friends.tabs.rankings'), ...(isFree && { icon: 'scale' }) },
+  ], [t, incomingCount, isFree]);
 
   const activeTabIndex = TAB_KEYS.indexOf(activeTab);
 
   const handleTabChange = useCallback((key: string) => {
+    if ((key === 'challenges' || key === 'rankings') && isFree) {
+      router.push('/paywall');
+      return;
+    }
+    if (key === 'rankings') {
+      router.push('/rankings');
+      return;
+    }
     setActiveTab(key as TabKey);
-  }, []);
+  }, [isFree]);
 
   const friendIds = useMemo(() => new Set(friends.map(f => f.id)), [friends]);
 
@@ -1008,7 +1023,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     // FAB
     fab: {
       position: 'absolute',
-      bottom: spacing[8],
+      bottom: spacing[28],
       right: spacing[5],
       ...shadows.float,
     },

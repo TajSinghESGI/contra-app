@@ -87,12 +87,14 @@ export const useDebateStore = create<DebateState>()((set) => ({
     topicId: string,
     topic: string,
     difficulty: DifficultyLevel,
+    maxTurns?: number,
   ) =>
     set({
       debateId: id,
       topicId,
       topic,
       difficulty,
+      maxTurns: maxTurns ?? 6,
       messages: [
         {
           id: 'ai-intro',

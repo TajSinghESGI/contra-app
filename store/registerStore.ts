@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 
 interface RegisterState {
-  fullName: string;
+  pseudo: string;
   email: string;
   password: string;
   selectedTopics: string[];
   selectedDifficulty: string;
-  setFullName: (v: string) => void;
+  setPseudo: (v: string) => void;
   setEmail: (v: string) => void;
   setPassword: (v: string) => void;
   toggleTopic: (topic: string) => void;
@@ -15,9 +15,9 @@ interface RegisterState {
 }
 
 const INITIAL: Pick<RegisterState,
-  'fullName' | 'email' | 'password' | 'selectedTopics' | 'selectedDifficulty'
+  'pseudo' | 'email' | 'password' | 'selectedTopics' | 'selectedDifficulty'
 > = {
-  fullName: '',
+  pseudo: '',
   email: '',
   password: '',
   selectedTopics: [],
@@ -26,7 +26,7 @@ const INITIAL: Pick<RegisterState,
 
 export const useRegisterStore = create<RegisterState>()((set) => ({
   ...INITIAL,
-  setFullName: (v) => set({ fullName: v }),
+  setPseudo: (v) => set({ pseudo: v }),
   setEmail: (v) => set({ email: v }),
   setPassword: (v) => set({ password: v }),
   toggleTopic: (topic) =>

@@ -20,7 +20,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StepDots, createSharedStyles } from './index';
+import { StepDots } from './index';
+import { createSharedStyles } from './sharedStyles';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -38,7 +39,7 @@ export default function RegisterLevel() {
   const styles = useMemo(() => createLocalStyles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { fullName, email, password, selectedTopics, selectedDifficulty, setDifficulty, reset } = useRegisterStore();
+  const { pseudo, email, password, selectedTopics, selectedDifficulty, setDifficulty, reset } = useRegisterStore();
   const login = useAuthStore((s) => s.login);
   const ctaScale = useSharedValue(1);
   const ctaStyle = useAnimatedStyle(() => ({ transform: [{ scale: ctaScale.value }] }));
@@ -49,10 +50,10 @@ export default function RegisterLevel() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const res = await apiRegister(email, password, fullName);
+      const res = await apiRegister(email, password, pseudo);
       await login(res.token, res.refresh, res.user);
       await loginUser(res.user.id);
-      identify(res.user.id, { email: res.user.email, name: res.user.full_name });
+      identify(res.user.id, { email: res.user.email, name: res.user.pseudo });
       track(AnalyticsEvents.SIGNUP_COMPLETED, {
         difficulty: selectedDifficulty,
         topicCount: selectedTopics.length,
@@ -63,6 +64,10 @@ export default function RegisterLevel() {
       });
       reset();
       router.replace('/(tabs)');
+      setTimeout(() => {
+        Toast.show(t('auth.signupSuccess'), { type: 'success', duration: 3000 });
+        router.push('/paywall');
+      }, 500);
     } catch (e: any) {
       const msg = e.message ?? '';
       if (msg.includes('email') || msg.includes('existe') || msg.includes('exists') || msg.includes('unique')) {

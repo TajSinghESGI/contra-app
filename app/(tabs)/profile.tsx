@@ -10,9 +10,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useTopicStore } from '@/store/topicStore';
 import { useProgressionStore } from '@/store/progressionStore';
 import { useStreakStore } from '@/store/streakStore';
-import { useBadgeStore, BADGES } from '@/store/badgeStore';
+import { useBadgeStore, BADGE_DEFS } from '@/store/badgeStore';
 import { useFriendStore } from '@/store/friendStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getProfile, updateProfile, uploadAvatar, reportBug, isTrialExpired, startTrial } from '@/services/api';
@@ -26,6 +26,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
@@ -123,21 +124,43 @@ function LanguageSheetContent({ initialLang = 'fr' }: { initialLang?: string }) 
 function DifficultySheetContent() {
   const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
+  const user = useAuthStore((s) => s.user);
+  const isFree = user?.subscription_tier === 'free';
+  const [selectedDifficulty, setSelectedDifficulty] = useState(user?.default_difficulty ?? 'medium');
+
+  const handleSelect = async (id: string) => {
+    setSelectedDifficulty(id);
+    try {
+      const updated = await updateProfile({ default_difficulty: id });
+      const current = useAuthStore.getState().user;
+      if (current) useAuthStore.setState({ user: { ...current, default_difficulty: updated.default_difficulty } });
+    } catch {}
+  };
+
   return (
     <View style={styles.sheetContent}>
       <Text style={styles.sheetTitle}>{t('profile.items.defaultDifficulty')}</Text>
       {DIFFICULTY_LEVELS.map((level) => {
         const isActive = selectedDifficulty === level.id;
+        const isLocked = isFree && (level.id === 'hard' || level.id === 'brutal');
         return (
           <TouchableOpacity
             key={level.id}
             style={[styles.diffRow, isActive && styles.diffRowActive]}
-            onPress={() => setSelectedDifficulty(level.id)}
+            onPress={() => isLocked ? router.push('/paywall') : handleSelect(level.id)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.diffLabel, isActive && styles.diffLabelActive]}>{level.label}</Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.diffLabel, isActive && styles.diffLabelActive]}>{level.label}</Text>
+                {isLocked && <Icon name="scale" size={12} color={colors['outline-variant']} />}
+              </View>
+              <Text style={{ fontFamily: fonts.regular, fontSize: fs(11), color: isActive ? colors['on-primary'] : colors['on-surface-variant'], marginTop: 2, opacity: isActive ? 0.8 : 1 }}>
+                {t(`settings.difficulty.desc_${level.id}`)}
+              </Text>
+            </View>
             {isActive && <Icon name="verified-check" size={18} color={colors['on-primary']} />}
           </TouchableOpacity>
         );
@@ -294,6 +317,7 @@ export default function ProfileScreen() {
   const currentStreak = useStreakStore((s) => s.currentStreak);
   const { totalDebates, currentLevel } = useProgressionStore();
   const unlockedIds = useBadgeStore((s) => s.unlockedIds);
+  const unlockedBadges = useBadgeStore((s) => s.unlockedBadges);
   const [profile, setProfile] = useState<AuthUser | null>(null);
   const friendRequests = useFriendStore((s) => s.friendRequests);
   const challenges = useFriendStore((s) => s.challenges);
@@ -310,11 +334,13 @@ export default function ProfileScreen() {
     return incomingRequests + pendingChallenges;
   }, [friendRequests, challenges, profile]);
 
-  useEffect(() => {
-    getProfile().then(setProfile).catch(() => {});
-    fetchFriendRequests();
-    fetchChallenges();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      getProfile().then(setProfile).catch(() => {});
+      fetchFriendRequests();
+      fetchChallenges();
+    }, [])
+  );
 
   const [isUploading, setIsUploading] = useState(false);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
@@ -415,18 +441,23 @@ export default function ProfileScreen() {
         case 'badges':
           return (
             <View style={styles.sheetContent}>
-              <Text style={styles.sheetTitle}>{t('profile.badgesCount', { unlocked: unlockedIds.length, total: BADGES.length })}</Text>
+              <Text style={styles.sheetTitle}>{t('profile.badgesCount', { unlocked: unlockedIds.length, total: BADGE_DEFS.length })}</Text>
               <View style={styles.badgeGrid}>
-                {BADGES.map((badge) => {
-                  const unlocked = unlockedIds.includes(badge.id);
+                {BADGE_DEFS.map((def) => {
+                  const unlock = unlockedBadges.find((b) => b.id === def.id);
+                  const unlocked = !!unlock;
+                  const level = unlock?.level ?? 0;
+                  const levelEmoji = level === 3 ? '🥇' : level === 2 ? '🥈' : level === 1 ? '🥉' : '';
+                  const desc = level > 0 ? t(def.levels[level - 1].descKey) : t(def.levels[0].descKey);
                   return (
-                    <View key={badge.id} style={[styles.badgeItem, !unlocked && styles.badgeLocked]}>
-                      <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                    <View key={def.id} style={[styles.badgeItem, !unlocked && styles.badgeLocked]}>
+                      <Text style={styles.badgeIcon}>{def.icon}</Text>
+                      {unlocked && <Text style={styles.badgeLevelEmoji}>{levelEmoji}</Text>}
                       <Text style={[styles.badgeLabel, !unlocked && styles.badgeLabelLocked]} numberOfLines={1}>
-                        {badge.label}
+                        {t(def.labelKey)}
                       </Text>
                       <Text style={[styles.badgeDesc, !unlocked && styles.badgeLabelLocked]} numberOfLines={2}>
-                        {badge.description}
+                        {desc}
                       </Text>
                     </View>
                   );
@@ -452,6 +483,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.rootContainer}>
+    <Pressable
+      onPress={async () => { await logout(); logoutUser(); router.replace('/auth/login'); }}
+      hitSlop={12}
+      style={{ position: 'absolute', top: insets.top + spacing[2], right: spacing[6], zIndex: 100, padding: spacing[2] }}
+    >
+      <Ionicons name="log-out-outline" size={22} color={colors['on-surface-variant']} />
+    </Pressable>
     <AnimatedHeaderScrollView
       largeTitle={t('tabs.profile')}
       contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
@@ -483,9 +521,40 @@ export default function ProfileScreen() {
             </Pressable>
           )}
         </View>
-        <Text style={styles.userName}>{profile?.full_name ?? t('common.loading')}</Text>
+        <Text style={styles.userName}>{profile?.pseudo ?? t('common.loading')}</Text>
         <Text style={styles.userSubtitle}>{profile?.level ?? currentLevel.label}</Text>
         <View style={styles.statsPillsRow}>
+          {/* Subscription chip */}
+          {(() => {
+            const tier = profile?.subscription_tier ?? 'free';
+            const isPro = ['pro_monthly', 'pro_annual', 'pro_lifetime'].includes(tier);
+            const isTrial = tier === 'trial' && !isTrialExpired(profile);
+
+            if (isPro) {
+              return (
+                <Pressable style={[styles.statsPill, { backgroundColor: colors.primary }]} onPress={() => router.push('/paywall')}>
+                  <Text style={[styles.statsPillText, { color: colors['on-primary'] }]}>PRO</Text>
+                </Pressable>
+              );
+            }
+            if (isTrial) {
+              const expiresAt = profile?.trial_expires_at ? new Date(profile.trial_expires_at) : null;
+              const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000)) : null;
+              return (
+                <Pressable style={[styles.statsPill, { backgroundColor: colors['tertiary-container'] }]} onPress={() => router.push('/paywall')}>
+                  <Text style={[styles.statsPillText, { color: colors['on-surface'] }]}>
+                    {t('profile.trialBadge')} · {daysLeft != null ? t('profile.trialDaysLeft', { count: daysLeft }) : t('profile.trialActive')}
+                  </Text>
+                </Pressable>
+              );
+            }
+            return (
+              <Pressable style={styles.statsPill} onPress={() => router.push('/paywall')}>
+                <Icon name="scale" size={10} color={colors['on-surface-variant']} />
+                <Text style={styles.statsPillText}>{t('profile.freeTier')}</Text>
+              </Pressable>
+            );
+          })()}
           {[
             t('profile.debates', { n: profile?.total_debates ?? totalDebates }),
             `${profile?.total_score ?? 0} pts`,
@@ -501,101 +570,14 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* ── Subscription status ── */}
-      {(() => {
-        const tier = profile?.subscription_tier ?? 'free';
-        const isPro = ['pro_monthly', 'pro_annual', 'pro_lifetime', 'eloquence'].includes(tier);
-        const isFree = tier === 'free';
-        const expired = isTrialExpired(profile);
-
-        if (isPro) {
-          return (
-            <Pressable
-              style={styles.subCard}
-              onPress={() => router.push('/paywall')}
-              accessibilityRole="button"
-            >
-              <View style={styles.subCardRow}>
-                <Text style={styles.subCardBadge}>PRO</Text>
-                <Text style={styles.subCardTitle}>{t('profile.subActive')}</Text>
-              </View>
-              <Text style={styles.subCardSub}>
-                {tier === 'pro_monthly' ? t('profile.subMonthly') :
-                 tier === 'pro_annual'  ? t('profile.subAnnual')  :
-                                          t('profile.subLifetime')}
-              </Text>
-            </Pressable>
-          );
-        }
-
-        // Free tier — never used trial yet
-        if (isFree) {
-          return (
-            <Pressable
-              style={styles.subCard}
-              onPress={async () => {
-                try {
-                  const updated = await startTrial();
-                  setProfile(updated);
-                  const authUser = useAuthStore.getState().user;
-                  if (authUser) useAuthStore.setState({ user: { ...authUser, subscription_tier: 'trial', trial_expires_at: updated.trial_expires_at, has_used_trial: true } });
-                } catch {}
-              }}
-              accessibilityRole="button"
-            >
-              <Text style={styles.subCardTitle}>{t('profile.freeTier')}</Text>
-              <Text style={styles.subCardCta}>{t('profile.startTrial')} →</Text>
-            </Pressable>
-          );
-        }
-
-        // Expired trial
-        if (expired) {
-          return (
-            <Pressable
-              style={[styles.subCard, styles.subCardExpired]}
-              onPress={() => router.push('/paywall')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.subCardTitle}>{t('profile.trialExpired')}</Text>
-              <Text style={styles.subCardCta}>{t('profile.subUpgrade')} →</Text>
-            </Pressable>
-          );
-        }
-
-        // Active trial — show countdown
-        const expiresAt = profile?.trial_expires_at ? new Date(profile.trial_expires_at) : null;
-        const daysLeft = expiresAt
-          ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000))
-          : null;
-
-        return (
-          <Pressable
-            style={styles.subCard}
-            onPress={() => router.push('/paywall')}
-            accessibilityRole="button"
-          >
-            <View style={styles.subCardRow}>
-              <Text style={styles.subCardBadge}>{t('profile.trialBadge')}</Text>
-              <Text style={styles.subCardTitle}>
-                {daysLeft !== null
-                  ? t('profile.trialDaysLeft', { count: daysLeft })
-                  : t('profile.trialActive')}
-              </Text>
-            </View>
-            <Text style={styles.subCardCta}>{t('profile.subUpgrade')} →</Text>
-          </Pressable>
-        );
-      })()}
-
       {/* ── Settings ── */}
       <View style={styles.settingsContainer}>
         {/* COMPTE */}
         <View style={styles.settingSection}>
           <Text style={styles.settingSectionTitle}>{t('profile.sections.account')}</Text>
           <View style={styles.settingRows}>
+            <SettingRow label={t('profile.editProfile')} onPress={() => router.push('/settings/edit-profile')} />
             <SettingRow label={t('profile.premiumSubscription')} onPress={() => router.push('/paywall')} />
-            <SettingRow label={t('profile.friendsAndChallenges')} badge={pendingCount} onPress={() => router.push('/friends')} />
             <SettingRow label={t('profile.items.notifications')} onPress={() => openSheet('notifications')} />
             <SettingRow label={t('profile.items.privacy')} onPress={() => openSheet('privacy')} />
           </View>
@@ -632,19 +614,9 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* ── Sign out ── */}
-      <View style={styles.signOutWrapper}>
-        <TouchableOpacity
-          style={styles.signOutButton}
-          activeOpacity={0.7}
-          onPress={async () => { await logout(); logoutUser(); router.replace('/auth/login'); }}
-        >
-          <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
-        </TouchableOpacity>
-      </View>
 
     </AnimatedHeaderScrollView>
-    {avatarPickerOpen && (
+    <Modal visible={avatarPickerOpen} transparent animationType="none" statusBarTranslucent>
       <AnimatedAvatarPicker
         size={72}
         initial={profile?.initial ?? '?'}
@@ -654,7 +626,7 @@ export default function ProfileScreen() {
         onPickLibrary={() => { setAvatarPickerOpen(false); pickFromLibrary(); }}
         onClose={() => setAvatarPickerOpen(false)}
       />
-    )}
+    </Modal>
     </View>
   );
 }
@@ -769,6 +741,9 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     justifyContent: 'center',
   },
   statsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors['surface-container-low'],
     paddingHorizontal: spacing[3],
     paddingVertical: 6,
@@ -802,6 +777,12 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   },
   badgeIcon: {
     fontSize: 22,
+  },
+  badgeLevelEmoji: {
+    fontSize: 12,
+    position: 'absolute' as const,
+    top: spacing[1],
+    right: spacing[1],
   },
   badgeLabel: {
     fontFamily: fonts.medium,

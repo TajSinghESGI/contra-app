@@ -7,6 +7,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
 import { reportBug } from '@/services/api';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
@@ -18,6 +19,7 @@ const CATEGORIES = ['Crash', 'Interface', 'Débat / IA', 'Audio', 'Compte', 'Aut
 export default function ReportBugScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useTranslation();
   const { colors, typography, fs } = useTheme();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [category, setCategory] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function ReportBugScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8} accessibilityRole="button">
           <Icon name="chevron-left" size={22} color={colors['on-surface']} />
         </Pressable>
-        <Text style={styles.headerTitle}>Signaler un bug</Text>
+        <Text style={styles.headerTitle}>{t('settings.reportBugTitle')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -54,7 +56,7 @@ export default function ReportBugScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.sectionLabel}>CATÉGORIE</Text>
+          <Text style={styles.sectionLabel}>{t('settings.bugCategory')}</Text>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((cat) => (
               <Pressable
@@ -68,13 +70,13 @@ export default function ReportBugScreen() {
             ))}
           </View>
 
-          <Text style={styles.sectionLabel}>DESCRIPTION</Text>
+          <Text style={styles.sectionLabel}>{t('settings.bugDescription')}</Text>
           <View style={styles.textAreaWrapper}>
             <TextInput
               style={styles.textArea}
               value={description}
               onChangeText={setDescription}
-              placeholder="Décris le problème rencontré, les étapes pour le reproduire…"
+              placeholder={t('settings.bugPlaceholder')}
               placeholderTextColor={colors['outline-variant']}
               multiline
               numberOfLines={6}
@@ -87,12 +89,12 @@ export default function ReportBugScreen() {
       ) : (
         <Animated.View entering={FadeIn.duration(400)} style={styles.successContainer}>
           <Icon name="circle-check" size={40} color={colors.primary} />
-          <Text style={styles.successTitle}>Merci !</Text>
+          <Text style={styles.successTitle}>{t('settings.bugSuccessTitle')}</Text>
           <Text style={styles.successBody}>
-            Ton rapport a bien été envoyé. On analyse ça rapidement.
+            {t('settings.bugSuccessBody')}
           </Text>
           <Pressable onPress={() => router.back()} style={styles.backLink}>
-            <Text style={styles.backLinkText}>Retour au profil</Text>
+            <Text style={styles.backLinkText}>{t('settings.backToProfile')}</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -112,7 +114,7 @@ export default function ReportBugScreen() {
             >
               {isLoading
                 ? <ActivityIndicator size="small" color={colors['on-primary']} />
-                : <Text style={styles.ctaText}>Envoyer le rapport</Text>
+                : <Text style={styles.ctaText}>{t('settings.submitReport')}</Text>
               }
             </LinearGradient>
           </Pressable>

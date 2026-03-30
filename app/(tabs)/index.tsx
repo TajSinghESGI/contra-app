@@ -1,11 +1,16 @@
 import { LiveDot } from '@/components/shared/LiveDot';
 import { SpectralWave } from '@/components/shared/SpectralWave';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useBottomSheetStack } from '@/components/ui/BottomSheetStack';
+import Icon from '@/components/ui/Icon';
+import { Toast } from '@/components/ui/Toast';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
-import { getActivityFeed, getActiveDebates, getChallenges, getDebateHistory, type ActivityEntry, type ActiveDebate, type Challenge, type DebateHistoryEntry } from '@/services/api';
+import { getActivityFeed, getActiveDebates, getChallenges, getDebateHistory, getUserStats, isTrialExpired, proposeTopic, type ActivityEntry, type ActiveDebate, type Challenge, type DebateHistoryEntry } from '@/services/api';
 import { useFriendStore } from '@/store/friendStore';
 import { useAuthStore } from '@/store/authStore';
+import { useBannerStore } from '@/store/bannerStore';
 const useIsReady = () => useAuthStore((s) => s.isHydrated && s.isLogged);
 import { useStreakStore } from '@/store/streakStore';
 import { useTopicStore } from '@/store/topicStore';
@@ -14,8 +19,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -96,6 +104,109 @@ function AnimatedCTAButton({ onPress }: { onPress: () => void }) {
   );
 }
 
+// ─── Propose debate sheet ─────────────────────────────────────────────────────
+
+// Step 1: Topic + public toggle
+function ProposeStep1({
+  onNext,
+}: {
+  onNext: (question: string, isPublic: boolean) => void;
+}) {
+  const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+
+  const [question, setQuestion] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+
+  const canContinue = question.trim().length >= 10;
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
+      <View style={styles.proposeContent}>
+        <Text style={styles.proposeTitle}>{t('home.proposeTitle')}</Text>
+
+        <TextInput
+          style={styles.proposeInput}
+          placeholder={t('home.proposePlaceholder')}
+          placeholderTextColor={colors['outline-variant']}
+          value={question}
+          onChangeText={setQuestion}
+          multiline
+          maxLength={200}
+          autoFocus
+        />
+        <Text style={styles.proposeCharCount}>{question.length}/200</Text>
+
+        <View style={styles.proposePublicRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.proposePublicLabel}>{t('home.proposePublic')}</Text>
+            <Text style={styles.proposePublicSub}>{t('home.proposePublicSub')}</Text>
+          </View>
+          <Switch
+            value={isPublic}
+            onValueChange={setIsPublic}
+            trackColor={{ false: colors['surface-container-high'], true: colors.primary }}
+            thumbColor={colors['on-primary']}
+          />
+        </View>
+
+        <Pressable
+          onPress={() => canContinue && onNext(question.trim(), isPublic)}
+          style={[styles.proposeStartButton, !canContinue && { opacity: 0.5 }]}
+          disabled={!canContinue}
+        >
+          <Text style={styles.proposeStartText}>{t('common.next')}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+// Step 2: Category selection
+function ProposeStep2({
+  categories,
+  onConfirm,
+}: {
+  categories: { id: string; label: string; emoji: string }[];
+  onConfirm: (categoryId: string) => void;
+}) {
+  const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+
+  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+      <View style={styles.proposeContent}>
+        <Text style={styles.proposeTitle}>{t('home.proposeCategory')}</Text>
+
+        <View style={styles.proposeCategoryWrap}>
+          {categories.map((cat) => (
+            <Pressable
+              key={cat.id}
+              onPress={() => setCategoryId(cat.id)}
+              style={[styles.proposeCategoryChip, categoryId === cat.id && styles.proposeCategoryChipActive]}
+            >
+              <Text style={[styles.proposeCategoryText, categoryId === cat.id && styles.proposeCategoryTextActive]}>
+                {cat.emoji} {cat.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          onPress={() => onConfirm(categoryId)}
+          style={styles.proposeStartButton}
+        >
+          <Text style={styles.proposeStartText}>{t('home.proposeStart')}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
@@ -104,51 +215,61 @@ export default function HomeScreen() {
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
 
-  const { topics, fetchTopics } = useTopicStore();
+  const { topics, categories, fetchTopics, fetchCategories } = useTopicStore();
+  const { pushSheet, popSheet, popToRoot } = useBottomSheetStack();
   const user = useAuthStore((s) => s.user);
   const defaultDifficulty = user?.default_difficulty ?? 'medium';
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activeDebates, setActiveDebates] = useState<ActiveDebate[]>([]);
   const [myTurnChallenges, setMyTurnChallenges] = useState<Challenge[]>([]);
+  const dailyUsed = useBannerStore((s) => s.dailyUsed);
+  const dailyLimit = useBannerStore((s) => s.dailyLimit);
   const isReady = useIsReady();
 
-  React.useEffect(() => { if (isReady) fetchTopics(); }, [isReady]);
+  React.useEffect(() => { if (isReady) { fetchTopics(); fetchCategories(); } }, [isReady]);
 
   const friendRequests = useFriendStore((s) => s.friendRequests);
   const storeChallenges = useFriendStore((s) => s.challenges);
   const fetchFriendRequests = useFriendStore((s) => s.fetchFriendRequests);
   const fetchStoreChallenges = useFriendStore((s) => s.fetchChallenges);
 
-  useEffect(() => {
-    if (!isReady) return;
-    fetchFriendRequests();
-    fetchStoreChallenges();
+  useFocusEffect(
+    useCallback(() => {
+      if (!isReady) return;
+      fetchFriendRequests();
+      fetchStoreChallenges();
+      getUserStats().then((s) => { useBannerStore.getState().setDaily(s.daily_used, s.daily_limit); }).catch(() => {});
 
-    const buildFromHistory = () =>
-      getDebateHistory()
-        .then(({ results: history }) => {
-          const entries: ActivityEntry[] = history.slice(0, 8).map((d) => ({
-            id: d.id,
-            initial: d.topic.charAt(0).toUpperCase(),
-            bg: d.result === 'win' ? '#34C759' : colors['surface-container-high'],
-            name: d.topic,
-            snippet: `${d.score}/100 · ${d.difficulty}`,
-            time: formatRelativeTime(d.date),
-          }));
-          setActivity(entries);
+      const noAccess = isTrialExpired(user);
+
+      const buildFromHistory = () => {
+        if (noAccess) return;
+        getDebateHistory()
+          .then(({ results: history }) => {
+            const entries: ActivityEntry[] = history.slice(0, 8).map((d) => ({
+              id: d.id,
+              initial: d.topic.charAt(0).toUpperCase(),
+              bg: d.result === 'win' ? '#34C759' : colors['surface-container-high'],
+              name: d.topic,
+              snippet: `${d.score}/100 · ${d.difficulty}`,
+              time: formatRelativeTime(d.date),
+            }));
+            setActivity(entries);
+          })
+          .catch(() => {});
+      };
+
+      getActivityFeed()
+        .then((feed) => {
+          if (feed.length > 0) {
+            setActivity(feed);
+          } else {
+            buildFromHistory();
+          }
         })
-        .catch(() => {});
-
-    getActivityFeed()
-      .then((feed) => {
-        if (feed.length > 0) {
-          setActivity(feed);
-        } else {
-          buildFromHistory();
-        }
-      })
-      .catch(() => buildFromHistory());
-  }, [isReady]);
+        .catch(() => buildFromHistory());
+    }, [isReady, user?.subscription_tier])
+  );
 
   // Merge store-based pending items on top of activity feed
   const composedActivity = useMemo(() => {
@@ -182,7 +303,7 @@ export default function HomeScreen() {
         });
       });
 
-    return [...pending, ...activity].slice(0, 10);
+    return [...pending, ...activity].slice(0, 5);
   }, [activity, friendRequests, storeChallenges, user?.id, t]);
 
   // Refresh active debate + challenges each time the home tab gains focus
@@ -203,9 +324,70 @@ export default function HomeScreen() {
     }, [user?.id, isReady])
   );
 
+  const handleDebate = useCallback((params: { topic: string; topicId: string; difficulty: string }) => {
+    if (dailyLimit !== null && dailyUsed >= dailyLimit) {
+      Toast.show(t('home.dailyLimitReached'), {
+        type: 'error',
+        duration: 4000,
+        onPress: () => router.push('/paywall'),
+      });
+      return;
+    }
+    router.push({ pathname: '/debate/new', params });
+  }, [dailyLimit, dailyUsed, t, router]);
+
+  const openProposeSheet = useCallback(() => {
+    pushSheet({
+      component: (
+        <BottomSheet
+          snapPoints={['60%']}
+          enableBackdrop
+          dismissOnBackdropPress
+          dismissOnSwipeDown
+        >
+          <ProposeStep1
+            onNext={(question: string, isPublic: boolean) => {
+              // Push step 2 on top
+              pushSheet({
+                component: (
+                  <BottomSheet
+                    snapPoints={['65%']}
+                    enableBackdrop
+                    dismissOnBackdropPress
+                    dismissOnSwipeDown
+                  >
+                    <ProposeStep2
+                      categories={categories}
+                      onConfirm={async (categoryId: string) => {
+                        popToRoot();
+                        if (isPublic) {
+                          try {
+                            const topic = await proposeTopic({ question, category: categoryId, is_public: true });
+                            handleDebate({ topic: question, topicId: topic.id, difficulty: defaultDifficulty });
+                          } catch {
+                            handleDebate({ topic: question, topicId: '', difficulty: defaultDifficulty });
+                          }
+                        } else {
+                          handleDebate({ topic: question, topicId: '', difficulty: defaultDifficulty });
+                        }
+                      }}
+                    />
+                  </BottomSheet>
+                ),
+              });
+            }}
+          />
+        </BottomSheet>
+      ),
+    });
+  }, [pushSheet, popToRoot, categories, handleDebate, defaultDifficulty]);
+
   const dailyTopic = useMemo(() => topics.find((t: any) => t.is_topic_of_day) ?? topics[0], [topics]);
   const trending = useMemo(() => topics.filter((t: any) => !t.is_topic_of_day).slice(0, 3), [topics]);
   const currentStreak = useStreakStore((s) => s.currentStreak);
+  const subtitleText = currentStreak >= 1
+    ? `${t('home.subtitle')} · 🔥${t('home.streakDays', { count: currentStreak })}`
+    : t('home.subtitle');
 
   const avatarStackColors = [
     colors['surface-dim'],
@@ -213,25 +395,12 @@ export default function HomeScreen() {
     colors['surface-container-high'],
   ];
 
-  const avatarComponent = (
-    <View style={styles.avatarCircle}>
-      <Text style={styles.avatarInitial}>T</Text>
-    </View>
-  );
-
   return (
     <AnimatedHeaderScrollView
       largeTitle={t('tabs.feed')}
-      subtitle={t('home.subtitle')}
-      rightComponent={avatarComponent}
+      subtitle={subtitleText}
       contentContainerStyle={styles.scrollContent}
     >
-      {/* ── Streak pill ── */}
-      {currentStreak >= 1 && (
-        <View style={styles.streakPill}>
-          <Text style={styles.streakText}>🔥 {t('home.streakDays', { count: currentStreak })}</Text>
-        </View>
-      )}
 
       {/* ── Active debate banner ── */}
       {activeDebates.length > 0 && (() => {
@@ -255,7 +424,7 @@ export default function HomeScreen() {
             {extra > 0 && (
               <Pressable
                 style={styles.overflowPill}
-                onPress={() => router.push('/analytics' as any)}
+                onPress={() => router.push('/debate/history' as any)}
                 accessibilityRole="button"
               >
                 <Text style={styles.overflowPillText}>+{extra} {t('home.otherDebates', { count: extra })}</Text>
@@ -301,11 +470,21 @@ export default function HomeScreen() {
         <Text style={styles.heroMeta}>
           {(dailyTopic?.participant_count ?? 0).toLocaleString('fr-FR')} {t('home.participantsToday')}
         </Text>
-        <AnimatedCTAButton onPress={() => router.push({
-          pathname: '/debate/new',
-          params: { topic: dailyTopic?.question ?? '', topicId: dailyTopic?.id ?? '', difficulty: defaultDifficulty },
-        })} />
+        <AnimatedCTAButton onPress={() => handleDebate({ topic: dailyTopic?.question ?? '', topicId: dailyTopic?.id ?? '', difficulty: defaultDifficulty })} />
       </View>
+
+      {/* ── Propose a debate ── */}
+      <Pressable
+        style={({ pressed }) => [styles.proposeCard, styles.cardShadow, pressed && { opacity: 0.9 }]}
+        onPress={openProposeSheet}
+      >
+        <Icon name="pen" size={18} color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.proposeCardTitle}>{t('home.proposeDebate')}</Text>
+          <Text style={styles.proposeCardSub}>{t('home.proposeDebateSub')}</Text>
+        </View>
+        <Icon name="chevron-right" size={16} color={colors['outline-variant']} />
+      </Pressable>
 
       {/* ── Trending Arenas ── */}
       <View style={styles.section}>
@@ -316,10 +495,7 @@ export default function HomeScreen() {
           {trending[0] && (
             <Pressable
               style={({ pressed }) => [styles.bentoLarge, styles.cardShadow, pressed && { opacity: 0.9 }]}
-              onPress={() => router.push({
-                pathname: '/debate/new',
-                params: { topic: trending[0].question, topicId: trending[0].id, difficulty: defaultDifficulty },
-              })}
+              onPress={() => handleDebate({ topic: trending[0].question, topicId: trending[0].id, difficulty: defaultDifficulty })}
               accessibilityRole="button"
             >
               <Text style={styles.bentoTitle}>{trending[0].question}</Text>
@@ -332,11 +508,7 @@ export default function HomeScreen() {
             {trending[1] && (
               <Pressable
                 style={({ pressed }) => [styles.bentoSmall, styles.cardShadow, pressed && { opacity: 0.9 }]}
-                onPress={() => router.push({
-                  pathname: '/debate/new',
-                  params: { topic: trending[1].question, topicId: trending[1].id, difficulty: defaultDifficulty,
-                  },
-                })}
+                onPress={() => handleDebate({ topic: trending[1].question, topicId: trending[1].id, difficulty: defaultDifficulty })}
                 accessibilityRole="button"
               >
                 <Text style={styles.bentoEmoji}>{trending[1].icon}</Text>
@@ -347,10 +519,7 @@ export default function HomeScreen() {
             {trending[2] && (
               <Pressable
                 style={({ pressed }) => [styles.bentoSmall, styles.cardShadow, pressed && { opacity: 0.9 }]}
-                onPress={() => router.push({
-                  pathname: '/debate/new',
-                  params: { topic: trending[2].question, topicId: trending[2].id, difficulty: defaultDifficulty },
-                })}
+                onPress={() => handleDebate({ topic: trending[2].question, topicId: trending[2].id, difficulty: defaultDifficulty })}
                 accessibilityRole="button"
               >
                 <Text style={styles.bentoEmoji}>{trending[2].icon}</Text>
@@ -374,7 +543,17 @@ export default function HomeScreen() {
         </View>
         {composedActivity.length === 0 ? (
           <View style={styles.emptyActivity}>
-            <Text style={styles.emptyActivityText}>{t('home.noActivity')}</Text>
+            <Text style={styles.emptyActivityText}>
+              {isTrialExpired(user) ? t('home.freeNoHistory') : t('home.noActivity')}
+            </Text>
+            {isTrialExpired(user) && (
+              <Pressable onPress={() => router.push('/paywall')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing[2] }}>
+                <Icon name="scale" size={14} color={colors.primary} />
+                <Text style={[styles.emptyActivityText, { color: colors.primary, fontFamily: fonts.semibold }]}>
+                  {t('home.goProCta')} →
+                </Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <View style={styles.activityList}>
@@ -534,6 +713,18 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors['on-surface-variant'],
     marginTop: spacing[2],
   },
+  dailyLimitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    marginTop: spacing[3],
+  },
+  dailyLimitText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+  },
 
   ctaPressable: {
     marginTop: spacing[5],
@@ -691,5 +882,122 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   activityTime: {
     ...typography['label-sm'],
     color: colors['on-surface-variant'],
+  },
+
+  // Propose card (feed)
+  proposeCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing[3],
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius['3xl'],
+    marginHorizontal: spacing[2],
+    marginTop: spacing[4],
+    padding: spacing[5],
+  },
+  proposeCardTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-surface'],
+  },
+  proposeCardSub: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
+  },
+
+  // Propose sheet
+  proposeContent: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[3],
+    paddingBottom: 120,
+  },
+  proposeTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fs(20),
+    color: colors['on-surface'],
+    letterSpacing: -0.3,
+    marginBottom: spacing[4],
+  },
+  proposeInput: {
+    backgroundColor: colors['surface-container-low'],
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    fontFamily: fonts.regular,
+    fontSize: fs(15),
+    color: colors['on-surface'],
+    minHeight: 100,
+    textAlignVertical: 'top' as const,
+  },
+  proposeCharCount: {
+    fontFamily: fonts.regular,
+    fontSize: fs(11),
+    color: colors['outline-variant'],
+    textAlign: 'right' as const,
+    marginTop: 4,
+  },
+  proposeSectionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: fs(12),
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+    color: colors.outline,
+    marginTop: spacing[4],
+    marginBottom: spacing[2],
+  },
+  proposeCategoryWrap: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: spacing[2],
+  },
+  proposeCategoryChip: {
+    backgroundColor: colors['surface-container-low'],
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+  },
+  proposeCategoryChipActive: {
+    backgroundColor: colors['on-surface'],
+  },
+  proposeCategoryText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+  },
+  proposeCategoryTextActive: {
+    color: colors.background,
+  },
+  proposePublicRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing[3],
+    marginTop: spacing[5],
+    paddingVertical: spacing[2],
+  },
+  proposePublicLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors['on-surface'],
+  },
+  proposePublicSub: {
+    fontFamily: fonts.regular,
+    fontSize: fs(12),
+    color: colors['on-surface-variant'],
+    marginTop: 2,
+  },
+  proposeStartButton: {
+    marginTop: spacing[6],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    height: 52,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  proposeStartText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-primary'],
+    letterSpacing: 0.5,
   },
 });

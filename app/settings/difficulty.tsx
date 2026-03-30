@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
 import { fonts, radius, shadows, spacing, DIFFICULTY_LEVELS, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuthStore } from '@/store/authStore';
 
 export default function DifficultyScreen() {
   const insets = useSafeAreaInsets();
@@ -13,6 +14,8 @@ export default function DifficultyScreen() {
   const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
+  const user = useAuthStore((s) => s.user);
+  const isFree = user?.subscription_tier === 'free';
   const [selected, setSelected] = useState<string>('medium');
 
   return (
@@ -33,11 +36,11 @@ export default function DifficultyScreen() {
         <View style={styles.levels}>
           {DIFFICULTY_LEVELS.map((level) => {
             const isActive = selected === level.id;
-            const isLocked = level.premiumOnly;
+            const isLocked = level.premiumOnly || (isFree && (level.id === 'hard' || level.id === 'brutal'));
             return (
               <Pressable
                 key={level.id}
-                onPress={() => { if (!isLocked) setSelected(level.id); }}
+                onPress={() => { isLocked ? router.push('/paywall') : setSelected(level.id); }}
                 style={[styles.card, isActive && styles.cardActive]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive, disabled: isLocked }}
@@ -48,6 +51,7 @@ export default function DifficultyScreen() {
                   </Text>
                   {isLocked && (
                     <View style={styles.proBadge}>
+                      <Icon name="scale" size={9} color="#fff" style={{ marginRight: 2 }} />
                       <Text style={styles.proBadgeText}>{t('common.pro')}</Text>
                     </View>
                   )}
@@ -95,6 +99,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   cardLabel: { fontFamily: fonts.medium, fontSize: fs(15), color: colors['on-surface-variant'] },
   cardLabelActive: { fontFamily: fonts.semibold, color: colors['on-surface'] },
   proBadge: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#AF52DE', borderRadius: radius.full,
     paddingHorizontal: spacing[2], paddingVertical: 2,
   },

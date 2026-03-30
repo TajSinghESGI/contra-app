@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   Pressable,
   StyleSheet,
@@ -15,7 +16,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Icon from '@/components/ui/Icon';
 import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { useToast } from '@/components/ui/Toast';
+import { Toast, useToast } from '@/components/ui/Toast';
 import { useFriendStore } from '@/store/friendStore';
 import { TOPICS } from '@/constants/topics';
 import { DIFFICULTY_LEVELS, fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
@@ -134,7 +135,7 @@ export default function UserProfileScreen() {
     if (!userId) return;
     getPublicProfile(userId)
       .then(setProfileData)
-      .catch(() => {});
+      .catch(() => Toast.show(t('errors.loadFailed'), { type: 'error' }));
   }, [userId]);
 
   const name = profileData?.user.name ?? 'Utilisateur';
@@ -143,7 +144,7 @@ export default function UserProfileScreen() {
   const title = profileData?.user.title ?? 'Débatteur';
   const initial = profileData?.user.initial ?? '?';
   const recentDebates: PublicProfileDebate[] = profileData?.recent_debates ?? [];
-  const strengths: string[] = profileData?.strengths ?? [];
+  const strengths: { name: string; score: number }[] = profileData?.strengths ?? [];
 
   const friendData: Friend = useMemo(() => ({
     id: userId ?? `user-${name}`,
@@ -195,7 +196,14 @@ export default function UserProfileScreen() {
         {/* Profile hero */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCard}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
+            {profileData?.user.avatarUrl ? (
+              <Image
+                source={{ uri: profileData.user.avatarUrl }}
+                style={{ width: 72, height: 72, borderRadius: 36 }}
+              />
+            ) : (
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            )}
           </View>
           <Text style={styles.userName}>{name}</Text>
           <Text style={styles.userTitle}>{title}</Text>
@@ -212,8 +220,8 @@ export default function UserProfileScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{recentDebates.filter((d) => d.result === 'win').length}/{recentDebates.length}</Text>
-              <Text style={styles.statLabel}>{t('userProfile.victories')}</Text>
+              <Text style={styles.statValue}>{profileData?.user.totalDebates ?? 0}</Text>
+              <Text style={styles.statLabel}>{t('userProfile.debates')}</Text>
             </View>
           </View>
         </Animated.View>
@@ -223,8 +231,8 @@ export default function UserProfileScreen() {
           <Text style={styles.sectionLabel}>{t('userProfile.strengths')}</Text>
           <View style={styles.strengthRow}>
             {strengths.map((s) => (
-              <View key={s} style={styles.strengthPill}>
-                <Text style={styles.strengthText}>{s}</Text>
+              <View key={s.name} style={styles.strengthPill}>
+                <Text style={styles.strengthText}>{s.name} · {s.score}</Text>
               </View>
             ))}
           </View>

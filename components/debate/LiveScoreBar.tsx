@@ -7,7 +7,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { spacing, type ColorTokens } from '@/constants/tokens';
+import { spacing, fonts, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 interface LiveScoreBarProps {
@@ -21,8 +21,8 @@ export const LiveScoreBar = memo(function LiveScoreBar({
   label,
   delay = 0,
 }: LiveScoreBarProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fs), [colors, fs]);
   // Clamp score to 0-100
   const clampedScore = Math.max(0, Math.min(100, score));
   const fillWidth = useSharedValue(0);
@@ -54,7 +54,7 @@ export const LiveScoreBar = memo(function LiveScoreBar({
   );
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, fs: (size: number) => number) => StyleSheet.create({
   container: {
     gap: spacing[1],
     alignSelf: 'stretch',
@@ -65,15 +65,15 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 9,
-    fontWeight: '600',
+    fontSize: fs(9),
+    fontFamily: fonts.semibold,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: colors['on-surface-variant'],
   },
   scoreText: {
-    fontSize: 9,
-    fontWeight: '600',
+    fontSize: fs(9),
+    fontFamily: fonts.semibold,
     letterSpacing: 1.2,
     color: colors['on-surface-variant'],
   },

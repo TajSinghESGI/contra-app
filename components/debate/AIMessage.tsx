@@ -1,12 +1,12 @@
 import React, { memo, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { spacing, radius, type ColorTokens } from '@/constants/tokens';
+import { spacing, radius, fonts, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from 'react-i18next';
 import { TypingDots } from './TypingDots';
@@ -20,8 +20,8 @@ export const AIMessage = memo(function AIMessage({
   content,
   isStreaming = false,
 }: AIMessageProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fs), [colors, fs]);
   const { t } = useTranslation();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(8);
@@ -58,13 +58,19 @@ export const AIMessage = memo(function AIMessage({
       {showTypingDots ? (
         <TypingDots />
       ) : (
-        <Text style={styles.content}>{content}</Text>
+        <TextInput
+          style={styles.content}
+          value={content}
+          editable={false}
+          multiline
+          scrollEnabled={false}
+        />
       )}
     </Animated.View>
   );
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, fs: (size: number) => number) => StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
     maxWidth: '88%',
@@ -80,8 +86,8 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     marginBottom: spacing[2],
   },
   senderLabel: {
-    fontSize: 9,
-    fontWeight: '600',
+    fontSize: fs(9),
+    fontFamily: fonts.semibold,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: colors['accent-ai'],
@@ -95,13 +101,13 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
     paddingVertical: 2,
   },
   coreBadgeText: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: fs(10),
+    fontFamily: fonts.medium,
     color: colors['accent-ai'],
   },
   content: {
-    fontSize: 18,
-    fontWeight: '400',
+    fontSize: fs(18),
+    fontFamily: fonts.regular,
     lineHeight: 28,
     color: colors['on-surface'],
   },

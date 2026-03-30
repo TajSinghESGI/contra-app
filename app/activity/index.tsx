@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Icon from '@/components/ui/Icon';
+import { Toast } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
@@ -82,7 +83,7 @@ export default function ActivityListScreen() {
   useEffect(() => {
     getActivityFeed()
       .then(setActivity)
-      .catch(() => {})
+      .catch(() => Toast.show(t('errors.loadFailed'), { type: 'error' }))
       .finally(() => setIsLoading(false));
   }, []);
 

@@ -6,19 +6,21 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
   FadeInDown,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { colors as staticColors, fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
 import Icon from '@/components/ui/Icon';
 import { useTheme } from '@/hooks/useTheme';
 import { AnimatedHeaderScrollView } from '@/components/ui/AnimatedHeaderScrollView';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-import { getDebateHistory } from '@/services/api';
-import type { DebateHistoryEntry } from '@/services/api';
+import { getDebateHistory, getActiveDebates } from '@/services/api';
+import type { DebateHistoryEntry, ActiveDebate } from '@/services/api';
+import { LiveDot } from '@/components/shared/LiveDot';
 
 // ─── Debate card ─────────────────────────────────────────────────────────────
 
@@ -95,10 +97,12 @@ function DebateCard({
 
 export default function DebateHistoryScreen() {
   const { colors, typography, fs } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  const [activeDebates, setActiveDebates] = useState<ActiveDebate[]>([]);
   const [debates, setDebates] = useState<DebateHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,7 +120,12 @@ export default function DebateHistoryScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadPage(); }, [loadPage]);
+  useFocusEffect(
+    useCallback(() => {
+      loadPage();
+      getActiveDebates().then(setActiveDebates).catch(() => {});
+    }, [loadPage])
+  );
 
   return (
     <View style={styles.root}>
@@ -138,15 +147,52 @@ export default function DebateHistoryScreen() {
         }}
       >
         <View style={styles.list}>
-          {initialLoaded && debates.length === 0 && (
-            <Text style={styles.emptyText}>Aucun débat terminé pour le moment.</Text>
+          {/* Active debates */}
+          {activeDebates.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>{t('debate.inProgress')}</Text>
+              {activeDebates.map((d, i) => (
+                <Animated.View
+                  key={d.id}
+                  entering={FadeInDown.delay(i * 60).duration(500).easing(Easing.out(Easing.cubic))}
+                >
+                  <Pressable
+                    style={({ pressed }) => [styles.activeCard, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                    onPress={() => router.push({ pathname: '/debate/[id]', params: { id: d.id, topic: d.topic } } as any)}
+                  >
+                    <View style={styles.activeCardTop}>
+                      <LiveDot />
+                      <Text style={styles.activeTopic} numberOfLines={2}>{d.topic}</Text>
+                      <View style={styles.activeTurnBadge}>
+                        <Text style={styles.activeTurnText}>{d.current_turn}/{d.max_turns}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.activeResume}>{t('home.resumeDebate')}</Text>
+                  </Pressable>
+                </Animated.View>
+              ))}
+            </>
+          )}
+
+          {/* Completed */}
+          {(debates.length > 0 || activeDebates.length > 0) && debates.length > 0 && (
+            <Text style={[styles.sectionLabel, activeDebates.length > 0 && { marginTop: spacing[4] }]}>{t('debate.completed')}</Text>
+          )}
+          {initialLoaded && debates.length === 0 && activeDebates.length === 0 && (
+            <Text style={styles.emptyText}>{t('debate.noDebatesYet')}</Text>
           )}
           {debates.map((debate, i) => (
             <DebateCard
               key={debate.id}
               debate={debate}
               delay={Math.min(i * 60, 400)}
-              onPress={() => router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } })}
+              onPress={() => {
+                if (debate.type === '1v1') {
+                  router.push({ pathname: '/challenge/result/[id]', params: { id: debate.id } });
+                } else {
+                  router.push({ pathname: '/debate/result/[id]', params: { id: debate.id, topic: debate.topic } });
+                }
+              }}
             />
           ))}
           {nextCursor && (
@@ -158,7 +204,7 @@ export default function DebateHistoryScreen() {
             >
               {loading
                 ? <ActivityIndicator size="small" color={staticColors.primary} />
-                : <Text style={styles.loadMoreText}>Charger plus</Text>}
+                : <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>}
             </Pressable>
           )}
         </View>
@@ -184,6 +230,50 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   },
   list: {
     gap: spacing[2],
+  },
+  sectionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: fs(11),
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.outline,
+    marginBottom: spacing[1],
+  },
+  activeCard: {
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius['2xl'],
+    padding: spacing[4],
+    ...shadows.ambient,
+  },
+  activeCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  activeTopic: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: fs(15),
+    color: colors['on-surface'],
+    lineHeight: fs(22),
+  },
+  activeTurnBadge: {
+    backgroundColor: colors['surface-container-high'],
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[2],
+    paddingVertical: 3,
+  },
+  activeTurnText: {
+    fontFamily: fonts.bold,
+    fontSize: fs(11),
+    letterSpacing: 1,
+    color: colors['on-surface-variant'],
+  },
+  activeResume: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(13),
+    color: colors.primary,
+    marginTop: spacing[2],
   },
 
   debateCard: {

@@ -1,73 +1,139 @@
 import { create } from 'zustand';
 import { createMMKV } from 'react-native-mmkv';
 import { getProfile } from '@/services/api';
+import i18n from '@/i18n';
 
 const storage = createMMKV();
 const BADGES_KEY = 'contra_badges';
 
-// ─── Badge definitions ───────────────────────────────────────────────────────
+// ─── Badge definitions (aligned with backend apps/users/badges.py) ──────────
 
-export interface Badge {
-  id: string;
-  label: string;
-  description: string;
-  icon: string;
-  level?: 1 | 2 | 3;
+export interface BadgeLevel {
+  level: 1 | 2 | 3;
+  labelKey: string;
+  descKey: string;
 }
 
-export const BADGES: Badge[] = [
-  // Milestones
-  { id: 'first_debate',     label: 'Premier Pas',        description: 'Terminer ton premier débat',                icon: '🎯' },
-  { id: '10_debates',       label: 'Habitué',             description: 'Terminer 10 débats',                        icon: '🔟' },
-  { id: '25_debates',       label: 'Vétéran',             description: 'Terminer 25 débats',                        icon: '🏅' },
-  { id: '50_debates',       label: 'Machine',             description: 'Terminer 50 débats',                        icon: '⚙️' },
+export interface BadgeDef {
+  id: string;
+  icon: string;
+  labelKey: string;
+  levels: BadgeLevel[];
+}
 
-  // Scoring
-  { id: 'score_80',         label: 'Brillant',            description: 'Obtenir un score de 80+',                   icon: '✨' },
-  { id: 'score_90',         label: 'Éloquent',            description: 'Obtenir un score de 90+',                   icon: '👑' },
-
-  // Criteria mastery
-  { id: 'logic_master',     label: 'Logicien',            description: 'Obtenir 90%+ en Logique',                   icon: '🧠' },
-  { id: 'rhetoric_master',  label: 'Orateur',             description: 'Obtenir 90%+ en Rhétorique',                icon: '🎙️' },
-  { id: 'evidence_master',  label: 'Enquêteur',           description: 'Obtenir 90%+ en Preuves',                   icon: '🔍' },
-  { id: 'original_master',  label: 'Créatif',             description: 'Obtenir 90%+ en Originalité',               icon: '💡' },
-
-  // Streaks
-  { id: 'streak_3',         label: 'En Feu',              description: 'Streak de 3 jours',                         icon: '🔥' },
-  { id: 'streak_7',         label: 'Semaine Parfaite',    description: 'Streak de 7 jours',                         icon: '📅' },
-  { id: 'streak_30',        label: 'Inarrêtable',         description: 'Streak de 30 jours',                        icon: '💎' },
-
-  // Special
-  { id: 'brutal_survivor',  label: 'Survivant',           description: 'Terminer un débat en mode Brutal',          icon: '☠️' },
-  { id: 'perfect_balance',  label: 'Équilibriste',        description: 'Obtenir 70%+ sur les 4 critères',           icon: '⚖️' },
+export const BADGE_DEFS: BadgeDef[] = [
+  {
+    id: 'debatteur',
+    icon: '🎯',
+    labelKey: 'badges.debatteur',
+    levels: [
+      { level: 1, labelKey: 'badges.debatteur', descKey: 'badges.debatteur_1' },
+      { level: 2, labelKey: 'badges.debatteur', descKey: 'badges.debatteur_2' },
+      { level: 3, labelKey: 'badges.debatteur', descKey: 'badges.debatteur_3' },
+    ],
+  },
+  {
+    id: 'score',
+    icon: '⭐',
+    labelKey: 'badges.score',
+    levels: [
+      { level: 1, labelKey: 'badges.score', descKey: 'badges.score_1' },
+      { level: 2, labelKey: 'badges.score', descKey: 'badges.score_2' },
+      { level: 3, labelKey: 'badges.score', descKey: 'badges.score_3' },
+    ],
+  },
+  {
+    id: 'streak',
+    icon: '🔥',
+    labelKey: 'badges.streak',
+    levels: [
+      { level: 1, labelKey: 'badges.streak', descKey: 'badges.streak_1' },
+      { level: 2, labelKey: 'badges.streak', descKey: 'badges.streak_2' },
+      { level: 3, labelKey: 'badges.streak', descKey: 'badges.streak_3' },
+    ],
+  },
+  {
+    id: 'logicien',
+    icon: '🧠',
+    labelKey: 'badges.logicien',
+    levels: [
+      { level: 1, labelKey: 'badges.logicien', descKey: 'badges.logicien_1' },
+      { level: 2, labelKey: 'badges.logicien', descKey: 'badges.logicien_2' },
+      { level: 3, labelKey: 'badges.logicien', descKey: 'badges.logicien_3' },
+    ],
+  },
+  {
+    id: 'orateur',
+    icon: '🎤',
+    labelKey: 'badges.orateur',
+    levels: [
+      { level: 1, labelKey: 'badges.orateur', descKey: 'badges.orateur_1' },
+      { level: 2, labelKey: 'badges.orateur', descKey: 'badges.orateur_2' },
+      { level: 3, labelKey: 'badges.orateur', descKey: 'badges.orateur_3' },
+    ],
+  },
+  {
+    id: 'enqueteur',
+    icon: '🔍',
+    labelKey: 'badges.enqueteur',
+    levels: [
+      { level: 1, labelKey: 'badges.enqueteur', descKey: 'badges.enqueteur_1' },
+      { level: 2, labelKey: 'badges.enqueteur', descKey: 'badges.enqueteur_2' },
+      { level: 3, labelKey: 'badges.enqueteur', descKey: 'badges.enqueteur_3' },
+    ],
+  },
+  {
+    id: 'creatif',
+    icon: '💡',
+    labelKey: 'badges.creatif',
+    levels: [
+      { level: 1, labelKey: 'badges.creatif', descKey: 'badges.creatif_1' },
+      { level: 2, labelKey: 'badges.creatif', descKey: 'badges.creatif_2' },
+      { level: 3, labelKey: 'badges.creatif', descKey: 'badges.creatif_3' },
+    ],
+  },
+  {
+    id: 'equilibriste',
+    icon: '⚖️',
+    labelKey: 'badges.equilibriste',
+    levels: [
+      { level: 1, labelKey: 'badges.equilibriste', descKey: 'badges.equilibriste_1' },
+      { level: 2, labelKey: 'badges.equilibriste', descKey: 'badges.equilibriste_2' },
+      { level: 3, labelKey: 'badges.equilibriste', descKey: 'badges.equilibriste_3' },
+    ],
+  },
+  {
+    id: 'brutal',
+    icon: '💀',
+    labelKey: 'badges.brutal',
+    levels: [
+      { level: 1, labelKey: 'badges.brutal', descKey: 'badges.brutal_1' },
+      { level: 2, labelKey: 'badges.brutal', descKey: 'badges.brutal_2' },
+      { level: 3, labelKey: 'badges.brutal', descKey: 'badges.brutal_3' },
+    ],
+  },
 ];
 
-export function getBadgeById(id: string): (Badge & { level?: number }) | undefined {
-  const meta = BADGES.find((b) => b.id === id);
-  if (!meta) return undefined;
+const LEVEL_LABELS: Record<1 | 2 | 3, string> = { 1: '🥉', 2: '🥈', 3: '🥇' };
 
-  // Check if a level is available from the store
+/** Get a badge def + unlocked level info */
+export function getBadgeById(id: string) {
+  const def = BADGE_DEFS.find((b) => b.id === id);
+  if (!def) return undefined;
   const { unlockedBadges } = useBadgeStore.getState();
   const unlocked = unlockedBadges.find((b) => b.id === id);
-  return { ...meta, level: unlocked?.level };
-}
-
-// ─── Score context (kept for backward compat) ───────────────────────────────
-
-export interface DebateScoreContext {
-  total: number;
-  logic: number;
-  rhetoric: number;
-  evidence: number;
-  originality: number;
-  difficulty: string;
+  return {
+    ...def,
+    label: i18n.t(def.labelKey),
+    unlockedLevel: unlocked?.level ?? 0,
+    levelEmoji: unlocked ? LEVEL_LABELS[unlocked.level as 1 | 2 | 3] : undefined,
+  };
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 interface BadgeState {
   unlockedBadges: { id: string; level: number }[];
-  /** @deprecated kept for backward compatibility — use unlockedBadges */
   unlockedIds: string[];
   sync: () => Promise<void>;
   hydrate: () => void;
@@ -78,7 +144,6 @@ export const useBadgeStore = create<BadgeState>((set) => ({
   unlockedIds: [],
 
   hydrate: () => {
-    // Load cached values so the UI doesn't flash on startup
     const stored = storage.getString(BADGES_KEY);
     if (stored) {
       try {
@@ -88,11 +153,9 @@ export const useBadgeStore = create<BadgeState>((set) => ({
           unlockedIds: parsed.map((b) => b.id),
         });
       } catch {
-        // Corrupted cache — ignore
+        // Corrupted cache
       }
     }
-
-    // Then sync from backend in the background
     useBadgeStore.getState().sync().catch(() => {});
   },
 
@@ -103,10 +166,7 @@ export const useBadgeStore = create<BadgeState>((set) => ({
         id: b.badge_id,
         level: b.level,
       }));
-
-      // Update MMKV cache
       storage.set(BADGES_KEY, JSON.stringify(badges));
-
       set({
         unlockedBadges: badges,
         unlockedIds: badges.map((b) => b.id),
