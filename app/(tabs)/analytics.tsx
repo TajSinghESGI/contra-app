@@ -317,6 +317,40 @@ export default function AnalyticsScreen() {
             </View>
           )}
 
+          {/* ── Scoring explanation ── */}
+          {criteria.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t('analytics.howScoring')}</Text>
+              <View style={styles.scoringCard}>
+                <Text style={styles.scoringExplain}>{t('analytics.scoringExplain')}</Text>
+                <View style={styles.scoringRow}>
+                  <Text style={styles.scoringEmoji}>🧠</Text>
+                  <Text style={styles.scoringDesc}>
+                    <Text style={styles.scoringBold}>{t('analytics.logic')}</Text> — {t('analytics.logicDesc')}
+                  </Text>
+                </View>
+                <View style={styles.scoringRow}>
+                  <Text style={styles.scoringEmoji}>🎯</Text>
+                  <Text style={styles.scoringDesc}>
+                    <Text style={styles.scoringBold}>{t('analytics.rhetoric')}</Text> — {t('analytics.rhetoricDesc')}
+                  </Text>
+                </View>
+                <View style={styles.scoringRow}>
+                  <Text style={styles.scoringEmoji}>📊</Text>
+                  <Text style={styles.scoringDesc}>
+                    <Text style={styles.scoringBold}>{t('analytics.evidence')}</Text> — {t('analytics.evidenceDesc')}
+                  </Text>
+                </View>
+                <View style={styles.scoringRow}>
+                  <Text style={styles.scoringEmoji}>💡</Text>
+                  <Text style={styles.scoringDesc}>
+                    <Text style={styles.scoringBold}>{t('analytics.originality')}</Text> — {t('analytics.originalityDesc')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* ── Recent debates ── */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -445,6 +479,42 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   criterionPercent: {
     fontFamily: fonts.bold,
     fontSize: fs(15),
+    color: colors['on-surface'],
+  },
+
+  // Scoring explanation
+  scoringCard: {
+    backgroundColor: colors['surface-container-lowest'],
+    borderRadius: radius['3xl'],
+    padding: spacing[5],
+    gap: spacing[3],
+    ...shadows.ambient,
+  },
+  scoringExplain: {
+    fontFamily: fonts.regular,
+    fontSize: fs(14),
+    color: colors['on-surface-variant'],
+    lineHeight: fs(22),
+    marginBottom: spacing[1],
+  },
+  scoringRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+  },
+  scoringEmoji: {
+    fontSize: fs(16),
+    marginTop: 2,
+  },
+  scoringDesc: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: fs(13),
+    color: colors['on-surface-variant'],
+    lineHeight: fs(20),
+  },
+  scoringBold: {
+    fontFamily: fonts.semibold,
     color: colors['on-surface'],
   },
 

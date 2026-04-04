@@ -17,7 +17,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Contra utilise la caméra pour prendre une photo de profil.",
         "NSPhotoLibraryUsageDescription": "Contra accède à ta galerie pour choisir une photo de profil.",
-        "NSMicrophoneUsageDescription": "Contra utilise le micro pour les fonctionnalités audio."
+        "NSMicrophoneUsageDescription": "Contra utilise le micro pour les fonctionnalités audio.",
+        "NSSpeechRecognitionUsageDescription": "Contra utilise la reconnaissance vocale pour transcrire tes arguments en texte."
       }
     },
     "android": {
@@ -33,6 +34,7 @@
         "READ_MEDIA_IMAGES",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
+        "RECORD_AUDIO",
         "com.android.vending.BILLING"
       ]
     },
@@ -63,6 +65,13 @@
         {
           "photosPermission": "Contra accède à ta galerie pour choisir une photo de profil.",
           "cameraPermission": "Contra utilise la caméra pour prendre une photo de profil."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Contra utilise le micro pour débattre à la voix.",
+          "speechRecognitionPermission": "Contra utilise la reconnaissance vocale pour transcrire tes arguments."
         }
       ]
     ],

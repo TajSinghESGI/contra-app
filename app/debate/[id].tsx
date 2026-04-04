@@ -13,6 +13,7 @@ import { LegendList } from '@legendapp/list';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { BlurView } from 'expo-blur';
 import Icon from '@/components/ui/Icon';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,8 @@ import { MarqueeText } from '@/components/ui/MarqueeText';
 import { SiriProvider, useSiri } from '@/components/ui/AppleIntelligence';
 import { ShimmerEffect } from '@/components/ui/Shimmer';
 import { useDebate } from '@/hooks/useDebate';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useTTS } from '@/hooks/useTTS';
 import { abandonDebate, stopDebate, getDebateScore } from '@/services/api';
 import { useDebateStore } from '@/store/debateStore';
 import type { ScoreResult } from '@/store/debateStore';
@@ -69,6 +72,45 @@ function DebateScreenInner() {
   const [finalScore, setFinalScore] = useState<ScoreResult | null>(null);
   const [hasTriggeredOrb, setHasTriggeredOrb] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+
+  // Voice input (STT)
+  const { isListening, transcript, isAvailable: voiceAvailable, startListening, stopListening } = useVoiceInput((text) => {
+    setInputText(text);
+  });
+
+  // TTS for AI responses
+  const { isSpeaking, speak, stop: stopTTS } = useTTS();
+
+  // Update input text with live transcript
+  useEffect(() => {
+    if (isListening && transcript) {
+      setInputText(transcript);
+    }
+  }, [transcript, isListening]);
+
+  // Auto TTS when AI finishes responding (if not muted)
+  useEffect(() => {
+    if (!ttsEnabled || isStreaming || messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'ai' && lastMsg.content && !lastMsg.isStreaming) {
+      speak(lastMsg.content);
+    }
+  }, [isStreaming, ttsEnabled]);
+
+  // Stop TTS when user starts typing
+  useEffect(() => {
+    if (inputText.trim() && isSpeaking) stopTTS();
+  }, [inputText]);
+
+  const handleMicPress = useCallback(() => {
+    if (isListening) {
+      stopListening();
+    } else {
+      if (isSpeaking) stopTTS();
+      startListening();
+    }
+  }, [isListening, isSpeaking, startListening, stopListening, stopTTS]);
 
   // Trigger Siri orb when debate ends
   useEffect(() => {
@@ -319,6 +361,13 @@ function DebateScreenInner() {
             />
           </View>
           <View style={styles.turnRow}>
+            <Pressable
+              onPress={() => { setTtsEnabled((v) => !v); if (isSpeaking) stopTTS(); }}
+              style={[styles.voiceToggle, ttsEnabled && styles.voiceToggleActive]}
+              hitSlop={8}
+            >
+              <Ionicons name={ttsEnabled ? 'volume-high' : 'volume-mute'} size={16} color={ttsEnabled ? colors['on-primary'] : colors['on-surface-variant']} />
+            </Pressable>
             <View style={styles.turnBadge}>
               <Text style={styles.turnCounter}>{t('debate.turnShort', { current: Math.min(currentTurn, maxTurns), max: maxTurns })}</Text>
             </View>
@@ -407,6 +456,9 @@ function DebateScreenInner() {
             onQuickAction={handleQuickAction}
             disabled={isStreaming}
             paddingBottom={insets.bottom + 12}
+            isListening={isListening}
+            onMicPress={handleMicPress}
+            voiceAvailable={voiceAvailable}
           />
         </KeyboardStickyView>
       )}
@@ -550,6 +602,18 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontSize: fs(11),
     color: colors['on-primary'],
     letterSpacing: 0.5,
+  },
+
+  voiceToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors['surface-container-high'],
+  },
+  voiceToggleActive: {
+    backgroundColor: colors.primary,
   },
 
   listContent: {

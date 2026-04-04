@@ -27,7 +27,7 @@ import { useTheme } from '@/hooks/useTheme';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const DEMO_TOPIC = 'ia-remplacement-humain';
+const DEMO_TOPIC = "L'IA va-t-elle remplacer les humains au travail ?";
 const DEMO_DIFFICULTY = 'easy';
 const DEMO_MAX_TURNS = 3;
 

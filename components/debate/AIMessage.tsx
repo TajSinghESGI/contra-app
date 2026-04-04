@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -58,13 +58,9 @@ export const AIMessage = memo(function AIMessage({
       {showTypingDots ? (
         <TypingDots />
       ) : (
-        <TextInput
-          style={styles.content}
-          value={content}
-          editable={false}
-          multiline
-          scrollEnabled={false}
-        />
+        <Text style={styles.content} selectable>
+          {content}
+        </Text>
       )}
     </Animated.View>
   );

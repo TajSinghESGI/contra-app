@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo } from 'react';
-import { Text, TextInput, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
   Easing,
 } from 'react-native-reanimated';
-import { spacing, radius, type ColorTokens } from '@/constants/tokens';
+import { spacing, radius, fonts, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 interface UserMessageProps {
@@ -17,8 +17,8 @@ interface UserMessageProps {
 export const UserMessage = memo(function UserMessage({
   content,
 }: UserMessageProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, fs } = useTheme();
+  const styles = useMemo(() => createStyles(colors, fs), [colors, fs]);
   const opacity = useSharedValue(0);
   const translateX = useSharedValue(20);
 
@@ -40,35 +40,28 @@ export const UserMessage = memo(function UserMessage({
 
   return (
     <Animated.View style={[styles.bubble, animatedStyle]}>
-      <TextInput
-        style={styles.content}
-        value={content}
-        editable={false}
-        multiline
-        scrollEnabled={false}
-      />
+      <Text style={styles.content} selectable>
+        {content}
+      </Text>
     </Animated.View>
   );
 });
 
-const createStyles = (colors: ColorTokens) => StyleSheet.create({
+const createStyles = (colors: ColorTokens, fs: (size: number) => number) => StyleSheet.create({
   bubble: {
     alignSelf: 'flex-end',
-    maxWidth: '80%',
+    maxWidth: '85%',
     backgroundColor: colors['accent-user-container'],
-    borderWidth: 1,
-    borderColor: colors['accent-user-container'],
     borderRadius: radius['2xl'],
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     marginVertical: spacing[1],
   },
   content: {
-    fontSize: 16,
-    fontWeight: '400',
+    fontSize: fs(16),
+    fontFamily: fonts.regular,
     lineHeight: 26,
     color: colors['on-surface'],
-    textAlign: 'right',
   },
 });
 

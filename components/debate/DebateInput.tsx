@@ -1,4 +1,5 @@
 import Icon from '@/components/ui/Icon';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +47,10 @@ interface DebateInputProps {
   onQuickAction: (action: string) => void;
   disabled?: boolean;
   paddingBottom: number;
+  // Voice mode
+  isListening?: boolean;
+  onMicPress?: () => void;
+  voiceAvailable?: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -57,6 +62,9 @@ export const DebateInput = memo(function DebateInput({
   onQuickAction,
   disabled = false,
   paddingBottom,
+  isListening = false,
+  onMicPress,
+  voiceAvailable = false,
 }: DebateInputProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -69,6 +77,7 @@ export const DebateInput = memo(function DebateInput({
   const maxRowWidth = useSharedValue(0);
 
   const canSend = value.trim().length > 0 && !disabled;
+  const showMic = voiceAvailable && !canSend && !disabled;
 
   const handleSend = () => {
     if (!canSend) return;
@@ -169,8 +178,8 @@ export const DebateInput = memo(function DebateInput({
                 style={[styles.textInput, { color: colors['on-surface'] }]}
                 value={value}
                 onChangeText={onChangeText}
-                placeholder={t('debate.inputPlaceholder')}
-                placeholderTextColor={colors['outline-variant']}
+                placeholder={isListening ? t('debate.listening') : t('debate.inputPlaceholder')}
+                placeholderTextColor={isListening ? colors.primary : colors['outline-variant']}
                 selectionColor={colors.primary}
                 multiline
                 numberOfLines={5}
@@ -219,23 +228,33 @@ export const DebateInput = memo(function DebateInput({
           </Animated.View>
         </Animated.View>
 
-        {/* ── Outer send button (slides out on focus) ── */}
+        {/* ── Outer button: mic or send (slides out on focus) ── */}
         <AnimatedPressable
           style={[styles.outerSendBtn, rSendStyle]}
-          onPress={handleSend}
-          disabled={!canSend}
+          onPress={showMic ? onMicPress : handleSend}
+          disabled={!showMic && !canSend}
         >
-          <LinearGradient
-            colors={[colors.primary, colors['primary-dim']]}
-            style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
-          >
-            <Icon
-              name="arrow-right"
-              size={16}
-              color={colors['on-primary']}
-              style={{ transform: [{ rotate: '-90deg' }] }}
-            />
-          </LinearGradient>
+          {showMic ? (
+            <View style={[styles.micBtn, isListening && styles.micBtnActive]}>
+              <Ionicons
+                name={isListening ? 'mic' : 'mic-outline'}
+                size={20}
+                color={isListening ? colors['on-primary'] : colors.primary}
+              />
+            </View>
+          ) : (
+            <LinearGradient
+              colors={[colors.primary, colors['primary-dim']]}
+              style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+            >
+              <Icon
+                name="arrow-right"
+                size={16}
+                color={colors['on-primary']}
+                style={{ transform: [{ rotate: '-90deg' }] }}
+              />
+            </LinearGradient>
+          )}
         </AnimatedPressable>
       </View>
     </Animated.View>
@@ -336,6 +355,19 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   outerSendBtn: {
     // positioned in the row next to the pill
+  },
+
+  // Mic button
+  micBtn: {
+    width: SEND_BTN_SIZE,
+    height: SEND_BTN_SIZE,
+    borderRadius: SEND_BTN_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors['surface-container-high'],
+  },
+  micBtnActive: {
+    backgroundColor: colors.primary,
   },
 });
 

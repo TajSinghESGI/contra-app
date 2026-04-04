@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,9 +16,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -100,12 +105,23 @@ export default function RegisterChat() {
     setMessages((prev) => [...prev, { id, role: 'user', text }]);
   }, []);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or typing state changes
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 500);
     }
   }, [messages.length, isTyping]);
+
+  const kbProgress = useSharedValue(0);
+  useEffect(() => {
+    const s1 = Keyboard.addListener('keyboardWillShow', () => { kbProgress.value = withTiming(1, { duration: 250 }); });
+    const s2 = Keyboard.addListener('keyboardWillHide', () => { kbProgress.value = withTiming(0, { duration: 250 }); });
+    return () => { s1.remove(); s2.remove(); };
+  }, []);
+  const bottomBarAnimStyle = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(kbProgress.value, [0, 1], [insets.bottom + 8, 4]),
+  }));
 
   // ─── Initial bot message ─────────────────────────────────────────────────
 
@@ -312,6 +328,7 @@ export default function RegisterChat() {
         keyExtractor={(m) => m.id}
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 64 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) =>
           item.role === 'bot' ? (
             <BotBubble text={item.text} colors={colors} fs={fs} />
@@ -328,9 +345,9 @@ export default function RegisterChat() {
         }
       />
 
-      {/* Bottom input / action area */}
+      {/* Input area — follows keyboard like debate screen */}
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+        <Animated.View style={[styles.bottomBar, bottomBarAnimStyle]}>
           {error && (
             <Animated.Text entering={FadeInDown.duration(200)} style={styles.errorText}>
               {error}
@@ -425,15 +442,7 @@ export default function RegisterChat() {
               </Pressable>
             </View>
           )}
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>{t('auth.alreadyHaveAccount')} </Text>
-            <Pressable onPress={() => router.replace('/auth/login')} hitSlop={8}>
-              <Text style={styles.footerLink}>{t('auth.login')}</Text>
-            </Pressable>
-          </View>
-        </View>
+        </Animated.View>
       </KeyboardStickyView>
 
       {/* Topics bottom sheet */}
@@ -575,7 +584,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
 
   listContent: {
     paddingHorizontal: spacing[5],
-    paddingBottom: 20,
+    paddingBottom: 450,
     gap: 16,
   },
   botBubble: {
@@ -669,20 +678,4 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors.primary,
   },
 
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: spacing[2],
-  },
-  footerText: {
-    fontFamily: fonts.regular,
-    fontSize: fs(14),
-    color: colors['on-surface-variant'],
-  },
-  footerLink: {
-    fontFamily: fonts.bold,
-    fontSize: fs(14),
-    color: colors['on-surface'],
-  },
 });
