@@ -36,9 +36,8 @@ import Svg, { Circle } from 'react-native-svg';
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 function getScoreColor(score: number): string {
-  if (score >= 75) return '#34C759';
-  if (score >= 50) return '#FF9500';
-  if (score >= 30) return '#FF6B35';
+  if (score >= 70) return '#34C759';
+  if (score >= 40) return '#FF9500';
   return '#FF3B30';
 }
 
@@ -323,30 +322,21 @@ export default function AnalyticsScreen() {
               <Text style={styles.sectionLabel}>{t('analytics.howScoring')}</Text>
               <View style={styles.scoringCard}>
                 <Text style={styles.scoringExplain}>{t('analytics.scoringExplain')}</Text>
-                <View style={styles.scoringRow}>
-                  <Text style={styles.scoringEmoji}>🧠</Text>
-                  <Text style={styles.scoringDesc}>
-                    <Text style={styles.scoringBold}>{t('analytics.logic')}</Text> — {t('analytics.logicDesc')}
-                  </Text>
-                </View>
-                <View style={styles.scoringRow}>
-                  <Text style={styles.scoringEmoji}>🎯</Text>
-                  <Text style={styles.scoringDesc}>
-                    <Text style={styles.scoringBold}>{t('analytics.rhetoric')}</Text> — {t('analytics.rhetoricDesc')}
-                  </Text>
-                </View>
-                <View style={styles.scoringRow}>
-                  <Text style={styles.scoringEmoji}>📊</Text>
-                  <Text style={styles.scoringDesc}>
-                    <Text style={styles.scoringBold}>{t('analytics.evidence')}</Text> — {t('analytics.evidenceDesc')}
-                  </Text>
-                </View>
-                <View style={styles.scoringRow}>
-                  <Text style={styles.scoringEmoji}>💡</Text>
-                  <Text style={styles.scoringDesc}>
-                    <Text style={styles.scoringBold}>{t('analytics.originality')}</Text> — {t('analytics.originalityDesc')}
-                  </Text>
-                </View>
+                {[
+                  { icon: 'chart-line' as const, label: t('analytics.logic'), desc: t('analytics.logicDesc') },
+                  { icon: 'crown' as const, label: t('analytics.rhetoric'), desc: t('analytics.rhetoricDesc') },
+                  { icon: 'search' as const, label: t('analytics.evidence'), desc: t('analytics.evidenceDesc') },
+                  { icon: 'star' as const, label: t('analytics.originality'), desc: t('analytics.originalityDesc') },
+                ].map((item) => (
+                  <View key={item.icon} style={styles.scoringRow}>
+                    <View style={styles.scoringIconBox}>
+                      <Icon name={item.icon} size={14} color={colors['on-surface-variant']} />
+                    </View>
+                    <Text style={styles.scoringDesc}>
+                      <Text style={styles.scoringBold}>{item.label}</Text> — {item.desc}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
           )}
@@ -457,6 +447,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
 
   // Criteria card
   criteriaCard: {
+    marginTop: spacing[3],
     backgroundColor: colors['surface-container-lowest'],
     borderRadius: radius['3xl'],
     padding: spacing[5],
@@ -484,6 +475,7 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
 
   // Scoring explanation
   scoringCard: {
+    marginTop: spacing[3],
     backgroundColor: colors['surface-container-lowest'],
     borderRadius: radius['3xl'],
     padding: spacing[5],
@@ -499,12 +491,17 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   },
   scoringRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing[2],
+    alignItems: 'center',
+    gap: spacing[3],
   },
-  scoringEmoji: {
-    fontSize: fs(16),
-    marginTop: 2,
+  scoringIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors['surface-container-high'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   scoringDesc: {
     flex: 1,

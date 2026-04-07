@@ -160,6 +160,8 @@ function DebateScreenInner() {
       await sendMessage(text);
     } catch (e: any) {
       console.error('Failed to send message:', e.message);
+      Toast.show(t('debate.sendFailed'), { type: 'error', duration: 3000, position: 'top' });
+      setInputText(text); // Restore the text so user can retry
     }
   }, [inputText, isStreaming, sendMessage]);
 
@@ -415,7 +417,7 @@ function DebateScreenInner() {
                 toggle();
                 setTimeout(() => {
                   dismiss();
-                  router.push({ pathname: '/debate/result/[id]', params: { id: id!, topic: displayTopic } });
+                  router.push({ pathname: '/debate/result/[id]', params: { id: id!, topic: displayTopic, fresh: '1' } });
                 }, 1800);
               }}
               style={[styles.debateOverCta, !finalScore && { opacity: 0.5 }]}

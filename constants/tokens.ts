@@ -221,6 +221,33 @@ export const SCORE_CRITERIA = [
   { key: 'originality', label: 'Originalité', weight: 0.20 },
 ] as const;
 
+// XP multipliers per difficulty
+export const XP_MULTIPLIERS: Record<string, number> = {
+  easy: 1.0,
+  medium: 1.25,
+  hard: 1.5,
+  brutal: 2.0,
+};
+
+// XP thresholds for each level (must match backend CustomUser.XP_THRESHOLDS)
+export const XP_THRESHOLDS = [
+  { id: 'novice',        xp: 0,     label: 'Novice' },
+  { id: 'apprenti',      xp: 500,   label: 'Apprenti' },
+  { id: 'rheteur',       xp: 2000,  label: 'Rhéteur' },
+  { id: 'grand_rheteur', xp: 5000,  label: 'Grand Rhéteur' },
+  { id: 'maitre',        xp: 12000, label: 'Maître' },
+] as const;
+
+// League config with colors
+export const LEAGUE_CONFIG = {
+  bronze:  { color: '#CD7F32', icon: 'shield-outline' as const, label: { fr: 'Bronze', en: 'Bronze' } },
+  silver:  { color: '#A8A8A8', icon: 'shield-outline' as const, label: { fr: 'Argent', en: 'Silver' } },
+  gold:    { color: '#FFD700', icon: 'shield-outline' as const, label: { fr: 'Or', en: 'Gold' } },
+  diamond: { color: '#B9F2FF', icon: 'diamond-outline' as const, label: { fr: 'Diamant', en: 'Diamond' } },
+} as const;
+
+export type LeagueId = keyof typeof LEAGUE_CONFIG;
+
 export const PLANS = {
   trial: {
     id: 'trial',

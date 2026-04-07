@@ -480,8 +480,9 @@ export async function getDebateCoaching(debateId: string): Promise<CoachingData>
 // Rankings
 // ---------------------------------------------------------------------------
 
-export async function getGlobalRankings(): Promise<RankingEntry[]> {
-  return apiFetch<RankingEntry[]>('/api/rankings/global/');
+export async function getGlobalRankings(league?: string): Promise<RankingEntry[]> {
+  const params = league ? `?league=${league}` : '';
+  return apiFetch<RankingEntry[]>(`/api/rankings/global/${params}`);
 }
 
 export async function getFriendsRankings(): Promise<RankingEntry[]> {

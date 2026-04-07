@@ -134,9 +134,9 @@ export const DebateInput = memo(function DebateInput({
     pointerEvents: focusProgress.value > 0.5 ? 'auto' as const : 'none' as const,
   }));
 
-  // TextInput overlay: only receives touches when focused
+  // TextInput overlay: always receives touches so user can type while AI streams
   const rInputOverlayStyle = useAnimatedStyle(() => ({
-    pointerEvents: focusProgress.value > 0.5 ? 'auto' as const : 'none' as const,
+    pointerEvents: 'auto' as const,
   }));
 
   // Send button inside expanded pill (visible only when focused, replaces the outer one)
@@ -183,6 +183,9 @@ export const DebateInput = memo(function DebateInput({
                 selectionColor={colors.primary}
                 multiline
                 numberOfLines={5}
+                onFocus={() => {
+                  focusProgress.value = withSpring(1, { damping: 40, stiffness: 500 });
+                }}
                 onBlur={() => {
                   focusProgress.value = withSpring(0, { damping: 40, stiffness: 500 });
                 }}

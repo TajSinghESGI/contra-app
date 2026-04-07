@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sendMessage as apiSendMessage, getDebate } from '@/services/api';
 import { DebateSSE } from '@/services/sse';
 import { useDebateStore } from '@/store/debateStore';
+import { Toast } from '@/components/ui/Toast';
+import i18n from '@/i18n';
 import type { DebateMessage, DifficultyLevel, ScoreResult } from '@/store/debateStore';
 
 // ---------------------------------------------------------------------------
@@ -129,9 +131,15 @@ export function useDebate(routeDebateId?: string): UseDebateReturn {
           }
         },
 
-        // onError — clear the streaming flag so the UI unlocks
+        // onError — clear streaming + show error toast
         (_error) => {
           finalizeStreamingMessage(placeholderId);
+          const t = i18n.t.bind(i18n);
+          Toast.show(t('debate.connectionLost'), {
+            type: 'error',
+            duration: 4000,
+            position: 'top',
+          });
         },
 
         // onDone — commit the accumulated content, attach per-message score

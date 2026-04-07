@@ -1,26 +1,34 @@
 import { create } from 'zustand';
 import { createMMKV } from 'react-native-mmkv';
 import { getUserStats } from '@/services/api';
+import { XP_THRESHOLDS, type LeagueId } from '@/constants/tokens';
 
 const storage = createMMKV();
 const TOTAL_DEBATES_KEY = 'contra_total_debates';
 const TOTAL_SCORE_KEY = 'contra_total_score';
 const LEVEL_KEY = 'contra_level';
+const XP_KEY = 'contra_xp';
+const BEST_SCORE_KEY = 'contra_best_score';
+const LEAGUE_KEY = 'contra_league';
 
 export interface DebaterLevel {
   id: string;
   label: string;
-  minDebates: number;
-  minAvgScore: number;
+  xp: number;
 }
 
-export const DEBATER_LEVELS: DebaterLevel[] = [
-  { id: 'novice',        label: 'Novice',          minDebates: 0,  minAvgScore: 0 },
-  { id: 'apprenti',      label: 'Apprenti',        minDebates: 5,  minAvgScore: 30 },
-  { id: 'rheteur',       label: 'Rhéteur',         minDebates: 15, minAvgScore: 50 },
-  { id: 'grand_rheteur', label: 'Grand Rhéteur',   minDebates: 30, minAvgScore: 65 },
-  { id: 'maitre',        label: 'Maître',          minDebates: 50, minAvgScore: 75 },
-];
+export const DEBATER_LEVELS: DebaterLevel[] = XP_THRESHOLDS.map((t) => ({
+  id: t.id,
+  label: t.label,
+  xp: t.xp,
+}));
+
+function levelFromXp(xp: number): DebaterLevel {
+  for (let i = DEBATER_LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= DEBATER_LEVELS[i].xp) return DEBATER_LEVELS[i];
+  }
+  return DEBATER_LEVELS[0];
+}
 
 function levelFromId(id: string): DebaterLevel {
   return DEBATER_LEVELS.find((l) => l.id === id) ?? DEBATER_LEVELS[0];
@@ -29,42 +37,89 @@ function levelFromId(id: string): DebaterLevel {
 interface ProgressionState {
   totalDebates: number;
   totalScore: number;
+  xp: number;
+  bestScore: number;
+  league: LeagueId;
   currentLevel: DebaterLevel;
+  /** XP progress within current level (0-1) */
+  xpProgress: number;
+  /** XP needed to reach next level */
+  xpForNextLevel: number;
   sync: () => Promise<void>;
   hydrate: () => void;
+}
+
+function computeXpProgress(xp: number, level: DebaterLevel) {
+  const idx = DEBATER_LEVELS.findIndex((l) => l.id === level.id);
+  const nextLevel = DEBATER_LEVELS[idx + 1];
+  if (!nextLevel) return { progress: 1, nextXp: level.xp }; // max level
+
+  const levelXp = xp - level.xp;
+  const levelRange = nextLevel.xp - level.xp;
+  return {
+    progress: Math.min(1, levelXp / levelRange),
+    nextXp: nextLevel.xp,
+  };
 }
 
 export const useProgressionStore = create<ProgressionState>((set) => ({
   totalDebates: 0,
   totalScore: 0,
+  xp: 0,
+  bestScore: 0,
+  league: 'bronze',
   currentLevel: DEBATER_LEVELS[0],
+  xpProgress: 0,
+  xpForNextLevel: 500,
 
   hydrate: () => {
-    // Load cached values so the UI doesn't flash on startup
     const debates = storage.getNumber(TOTAL_DEBATES_KEY) ?? 0;
     const score = storage.getNumber(TOTAL_SCORE_KEY) ?? 0;
-    const levelId = storage.getString(LEVEL_KEY) ?? 'novice';
-    set({ totalDebates: debates, totalScore: score, currentLevel: levelFromId(levelId) });
+    const xp = storage.getNumber(XP_KEY) ?? 0;
+    const bestScore = storage.getNumber(BEST_SCORE_KEY) ?? 0;
+    const league = (storage.getString(LEAGUE_KEY) ?? 'bronze') as LeagueId;
+    const level = levelFromXp(xp);
+    const { progress, nextXp } = computeXpProgress(xp, level);
 
-    // Then sync from backend in the background
+    set({
+      totalDebates: debates,
+      totalScore: score,
+      xp,
+      bestScore,
+      league,
+      currentLevel: level,
+      xpProgress: progress,
+      xpForNextLevel: nextXp,
+    });
+
     useProgressionStore.getState().sync().catch(() => {});
   },
 
   sync: async () => {
     try {
       const stats = await getUserStats();
+      const xp = stats.xp ?? 0;
+      const bestScore = stats.best_score ?? 0;
+      const league = (stats.league ?? 'bronze') as LeagueId;
+      const level = levelFromXp(xp);
+      const { progress, nextXp } = computeXpProgress(xp, level);
 
-      const level = levelFromId(stats.level);
-
-      // Update MMKV cache
       storage.set(TOTAL_DEBATES_KEY, stats.total_debates);
       storage.set(TOTAL_SCORE_KEY, stats.total_score);
-      storage.set(LEVEL_KEY, stats.level);
+      storage.set(XP_KEY, xp);
+      storage.set(BEST_SCORE_KEY, bestScore);
+      storage.set(LEAGUE_KEY, league);
+      storage.set(LEVEL_KEY, level.id);
 
       set({
         totalDebates: stats.total_debates,
         totalScore: stats.total_score,
+        xp,
+        bestScore,
+        league,
         currentLevel: level,
+        xpProgress: progress,
+        xpForNextLevel: nextXp,
       });
     } catch {
       // Offline — keep cached values

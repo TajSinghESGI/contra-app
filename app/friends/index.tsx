@@ -190,8 +190,8 @@ function ChallengeSheet({ friend, onSend }: { friend: Friend; onSend: (topic: st
 
 function getScoreColor(score: number) {
   'worklet';
-  if (score >= 75) return '#34C759';
-  if (score >= 50) return '#FF9500';
+  if (score >= 70) return '#34C759';
+  if (score >= 40) return '#FF9500';
   return '#FF3B30';
 }
 

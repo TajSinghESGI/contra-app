@@ -14,6 +14,7 @@
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.tajsingh.contraapp",
+      "associatedDomains": ["applinks:contra-app.cloud"],
       "infoPlist": {
         "NSCameraUsageDescription": "Contra utilise la caméra pour prendre une photo de profil.",
         "NSPhotoLibraryUsageDescription": "Contra accède à ta galerie pour choisir une photo de profil.",
@@ -27,6 +28,14 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.tajsingh.contraapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "contra-app.cloud", "pathPrefix": "/share" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -73,7 +82,11 @@
           "microphonePermission": "Contra utilise le micro pour débattre à la voix.",
           "speechRecognitionPermission": "Contra utilise la reconnaissance vocale pour transcrire tes arguments."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

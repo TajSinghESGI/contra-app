@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   Platform,
+  Modal,
   StyleSheet,
-  Share,
+  Pressable,
 } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { ShareCard } from '@/components/debate/ShareCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -18,10 +22,15 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withTiming,
   withDelay,
   Easing,
+  interpolateColor,
+  FadeInDown,
 } from 'react-native-reanimated';
+import { PIConfetti, type PIConfettiMethods } from 'react-native-fast-confetti';
+import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import { track } from '@/services/analytics';
@@ -68,16 +77,50 @@ function ResultScreenInner() {
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id, topic: topicParam } = useLocalSearchParams<{ id: string; topic?: string }>();
+  const { id, topic: topicParam, fresh } = useLocalSearchParams<{ id: string; topic?: string; fresh?: string }>();
+  const isNew = fresh === '1';
   const { toggle, dismiss, isActive } = useSiri();
   const { t } = useTranslation();
   const syncStreak = useStreakStore((s) => s.sync);
   const syncProgression = useProgressionStore((s) => s.sync);
   const syncBadges = useBadgeStore((s) => s.sync);
+  const [previousBest, setPreviousBest] = React.useState<number>(0);
 
   const [score, setScore] = React.useState<ScoreResult | null>(null);
+  const [showSharePreview, setShowSharePreview] = React.useState(false);
+  const confettiRef = useRef<PIConfettiMethods>(null);
+  const shareCardRef = useRef<View>(null);
+
+  const handleShareCapture = React.useCallback(async () => {
+    try {
+      if (!shareCardRef.current) {
+        console.warn('Share: ref not ready');
+        return;
+      }
+      // Wait for Modal + View to be fully laid out
+      await new Promise((r) => setTimeout(r, 300));
+      const uri = await captureRef(shareCardRef.current, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+      setShowSharePreview(false);
+      // Small delay before sharing to let modal dismiss
+      await new Promise((r) => setTimeout(r, 100));
+      await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+    } catch (e: any) {
+      console.error('Share capture failed:', e?.message ?? e);
+      setShowSharePreview(false);
+      const { Share: NativeShare } = require('react-native');
+      await NativeShare.share({
+        message: `Mon score CONTRA : ${score?.total ?? 0}/100`,
+      });
+    }
+  }, [score]);
   const scoreOpacity = useSharedValue(0);
   const scoreTranslate = useSharedValue(20);
+  const displayScore = useSharedValue(0);
+  const scoreColorProgress = useSharedValue(0);
 
   useEffect(() => {
     scoreOpacity.value = withDelay(100, withTiming(1, { duration: 700 }));
@@ -91,11 +134,34 @@ function ResultScreenInner() {
     const fetchAndProcess = async () => {
       try {
         const result = await getDebateScore(id);
+        setPreviousBest(result.previous_best ?? 0);
         setScore(result);
+        if (isNew) setTimeout(() => confettiRef.current?.restart(), 300);
         track(AnalyticsEvents.DEBATE_SCORE_VIEWED, {
           debateId: id,
           score: result.total,
         });
+
+        // Animated score counter
+        displayScore.value = withDelay(300, withTiming(result.total, {
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+        }));
+        scoreColorProgress.value = withDelay(300, withTiming(result.total / 100, {
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+        }));
+
+        // Haptic feedback based on score (only on fresh results)
+        if (isNew) {
+          if (result.total >= 80) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } else if (result.total >= 60) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }
 
         // Sync all stores from backend (streaks, progression, badges are computed server-side)
         await Promise.all([syncStreak(), syncProgression(), syncBadges()]);
@@ -118,6 +184,49 @@ function ResultScreenInner() {
 
   return (
     <View style={styles.root}>
+      {/* ── Share preview modal ── */}
+      <Modal visible={showSharePreview && !!score} transparent animationType="fade" onRequestClose={() => setShowSharePreview(false)}>
+        <View style={styles.shareOverlay}>
+          <View style={styles.shareModal}>
+            <View ref={shareCardRef} collapsable={false}>
+              <ShareCard
+                score={score?.total ?? 0}
+                topic={topicParam || score?.topic || ''}
+                logic={score?.logic ?? 0}
+                rhetoric={score?.rhetoric ?? 0}
+                evidence={score?.evidence ?? 0}
+                originality={score?.originality ?? 0}
+                verdict={score?.verdict || ''}
+              />
+            </View>
+            <View style={styles.shareActions}>
+              <Pressable style={styles.shareBtn} onPress={handleShareCapture}>
+                <Icon name="upload" size={16} color={colors['on-primary']} />
+                <Text style={styles.shareBtnText}>{t('result.share')}</Text>
+              </Pressable>
+              <Pressable style={styles.shareClose} onPress={() => setShowSharePreview(false)}>
+                <Text style={styles.shareCloseText}>{t('common.close')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Confetti overlay ── */}
+      <PIConfetti
+        ref={confettiRef}
+        count={score ? (score.total >= 80 ? 60 : score.total >= 60 ? 30 : 12) : 12}
+        fallDuration={score?.total && score.total >= 80 ? 4000 : 3000}
+        blastRadius={120}
+        colors={[
+          colors.primary,
+          colors['primary-dim'],
+          colors['on-surface-variant'],
+          colors['surface-container-high'],
+          colors.outline,
+        ]}
+      />
+
       {/* ── Header blur background (masked fade) ── */}
       {Platform.OS !== 'web' && (
         <MaskedView
@@ -150,11 +259,7 @@ function ResultScreenInner() {
         <TouchableOpacity
           style={styles.headerButton}
           hitSlop={8}
-          onPress={async () => {
-            await Share.share({
-              message: t('share.scoreMessage', { score: score?.total ?? 0, topic: topicParam || score?.topic || '' }) + '\n\n' + t('share.tagline'),
-            });
-          }}
+          onPress={() => { if (score) setShowSharePreview(true); }}
         >
           <Icon name="upload" size={18} color={colors['on-surface']} />
         </TouchableOpacity>
@@ -198,17 +303,41 @@ function ResultScreenInner() {
                 <Text style={styles.scoreNumber}>{score.total}</Text>
                 <Text style={styles.scoreOutOf}>{t('result.scoreOutOf')}</Text>
               </View>
+
+              {/* Personal Best comparison */}
+              {(() => {
+                if (score.total >= previousBest) {
+                  // New record (or first debate)
+                  if (previousBest > 0) {
+                    return (
+                      <Animated.View entering={FadeInDown.delay(800).duration(400)} style={styles.pbBadge}>
+                        <Icon name="crown" size={14} color="#34C759" />
+                        <Text style={styles.pbNewRecord}>{t('result.newRecord')}</Text>
+                      </Animated.View>
+                    );
+                  }
+                  return null; // first debate ever, no comparison
+                }
+                // Below record
+                const diff = previousBest - score.total;
+                const key = diff <= 5 ? 'almostRecord' : diff <= 15 ? 'gettingCloser' : diff <= 30 ? 'keepPushing' : 'longWay';
+                return (
+                  <Animated.View entering={FadeInDown.delay(800).duration(400)} style={styles.pbRow}>
+                    <Text style={styles.pbMessage}>{t(`result.pb.${key}`, { diff, best: previousBest })}</Text>
+                  </Animated.View>
+                );
+              })()}
             </Animated.View>
 
             {/* ── Bento grid metrics (2×2) ── */}
             <View style={styles.metricsGrid}>
               <View style={styles.metricsRow}>
-                <MetricCard label={t('result.criteria.logic')} value={`${score.logic}%`} percentage={score.logic} description={score.logic >= 75 ? t('result.criteriaDescriptions.logic.good') : t('result.criteriaDescriptions.logic.bad')} delay={200} />
-                <MetricCard label={t('result.criteria.rhetoric')} value={`${score.rhetoric}%`} percentage={score.rhetoric} description={score.rhetoric >= 75 ? t('result.criteriaDescriptions.rhetoric.good') : t('result.criteriaDescriptions.rhetoric.bad')} delay={350} />
+                <MetricCard label={t('result.criteria.logic')} value={`${score.logic}%`} percentage={score.logic} description={score.logic >= 70 ? t('result.criteriaDescriptions.logic.good') : t('result.criteriaDescriptions.logic.bad')} delay={200} />
+                <MetricCard label={t('result.criteria.rhetoric')} value={`${score.rhetoric}%`} percentage={score.rhetoric} description={score.rhetoric >= 70 ? t('result.criteriaDescriptions.rhetoric.good') : t('result.criteriaDescriptions.rhetoric.bad')} delay={350} />
               </View>
               <View style={styles.metricsRow}>
-                <MetricCard label={t('result.criteria.evidence')} value={`${score.evidence}%`} percentage={score.evidence} description={score.evidence >= 75 ? t('result.criteriaDescriptions.evidence.good') : t('result.criteriaDescriptions.evidence.bad')} delay={500} />
-                <MetricCard label={t('result.criteria.originality')} value={`${score.originality}%`} percentage={score.originality} description={score.originality >= 75 ? t('result.criteriaDescriptions.originality.good') : t('result.criteriaDescriptions.originality.bad')} delay={650} />
+                <MetricCard label={t('result.criteria.evidence')} value={`${score.evidence}%`} percentage={score.evidence} description={score.evidence >= 70 ? t('result.criteriaDescriptions.evidence.good') : t('result.criteriaDescriptions.evidence.bad')} delay={500} />
+                <MetricCard label={t('result.criteria.originality')} value={`${score.originality}%`} percentage={score.originality} description={score.originality >= 70 ? t('result.criteriaDescriptions.originality.good') : t('result.criteriaDescriptions.originality.bad')} delay={650} />
               </View>
             </View>
 
@@ -354,6 +483,80 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     color: colors['outline-variant'],
     marginBottom: 10,
     marginLeft: spacing[1],
+  },
+  // Share modal
+  shareOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareModal: {
+    alignItems: 'center',
+    gap: spacing[5],
+    paddingHorizontal: spacing[5],
+    width: '100%',
+  },
+  shareActions: {
+    flexDirection: 'row',
+    gap: spacing[4],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[3],
+    borderRadius: radius.full,
+  },
+  shareBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors['on-primary'],
+  },
+  shareClose: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  shareCloseText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(14),
+    color: '#AAAAAA',
+  },
+
+  pbBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: spacing[2],
+    marginTop: spacing[3],
+    backgroundColor: '#34C75912',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    borderRadius: radius.full,
+  },
+  pbNewRecord: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: '#34C759',
+  },
+  pbRow: {
+    marginTop: spacing[3],
+    alignSelf: 'center',
+  },
+  pbMessage: {
+    fontFamily: fonts.medium,
+    fontSize: fs(13),
+    color: colors['outline-variant'],
+    textAlign: 'center',
   },
 
   metricsGrid: {

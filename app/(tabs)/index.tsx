@@ -13,6 +13,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useBannerStore } from '@/store/bannerStore';
 const useIsReady = () => useAuthStore((s) => s.isHydrated && s.isLogged);
 import { useStreakStore } from '@/store/streakStore';
+import { StreakWidget } from '@/components/streak/StreakWidget';
+import { StreakMilestoneModal } from '@/components/streak/StreakMilestoneModal';
 import { useTopicStore } from '@/store/topicStore';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -228,6 +230,8 @@ export default function HomeScreen() {
 
   React.useEffect(() => { if (isReady) { fetchTopics(); fetchCategories(); } }, [isReady]);
 
+  const [milestoneToShow, setMilestoneToShow] = useState<number | null>(null);
+
   const friendRequests = useFriendStore((s) => s.friendRequests);
   const storeChallenges = useFriendStore((s) => s.challenges);
   const fetchFriendRequests = useFriendStore((s) => s.fetchFriendRequests);
@@ -239,6 +243,13 @@ export default function HomeScreen() {
       fetchFriendRequests();
       fetchStoreChallenges();
       getUserStats().then((s) => { useBannerStore.getState().setDaily(s.daily_used, s.daily_limit); }).catch(() => {});
+      useStreakStore.getState().sync().then(() => {
+        const m = useStreakStore.getState().checkMilestone();
+        if (m) {
+          setMilestoneToShow(m);
+          useStreakStore.getState().celebrateMilestone(m);
+        }
+      }).catch(() => {});
 
       const noAccess = isTrialExpired(user);
 
@@ -385,9 +396,7 @@ export default function HomeScreen() {
   const dailyTopic = useMemo(() => topics.find((t: any) => t.is_topic_of_day) ?? topics[0], [topics]);
   const trending = useMemo(() => topics.filter((t: any) => !t.is_topic_of_day).slice(0, 3), [topics]);
   const currentStreak = useStreakStore((s) => s.currentStreak);
-  const subtitleText = currentStreak >= 1
-    ? `${t('home.subtitle')} · 🔥${t('home.streakDays', { count: currentStreak })}`
-    : t('home.subtitle');
+  const subtitleText = t('home.subtitle');
 
   const avatarStackColors = [
     colors['surface-dim'],
@@ -396,11 +405,15 @@ export default function HomeScreen() {
   ];
 
   return (
+  <>
     <AnimatedHeaderScrollView
       largeTitle={t('tabs.feed')}
       subtitle={subtitleText}
       contentContainerStyle={styles.scrollContent}
     >
+
+      {/* ── Streak Widget ── */}
+      <StreakWidget />
 
       {/* ── Active debate banner ── */}
       {activeDebates.length > 0 && (() => {
@@ -575,6 +588,12 @@ export default function HomeScreen() {
         )}
       </View>
     </AnimatedHeaderScrollView>
+
+    <StreakMilestoneModal
+      milestone={milestoneToShow}
+      onDismiss={() => setMilestoneToShow(null)}
+    />
+  </>
   );
 }
 

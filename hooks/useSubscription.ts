@@ -8,6 +8,7 @@ import {
   type CustomerInfo,
   type PurchasesPackage,
 } from '@/services/revenuecat';
+import { useAuthStore } from '@/store/authStore';
 
 export type SubscriptionTier = 'free' | 'pro';
 
@@ -96,11 +97,16 @@ export function useSubscription(): UseSubscriptionReturn {
     }
   }, []);
 
-  const tier = tierFromInfo(customerInfo);
+  const rcTier = tierFromInfo(customerInfo);
+  // Also check backend subscription tier (covers manual Pro grants, webhook delays, etc.)
+  const backendTier = useAuthStore((s) => s.user?.subscription_tier);
+  const isBackendPro = backendTier === 'pro_monthly' || backendTier === 'pro_annual' || backendTier === 'pro_lifetime';
+  const isPro = rcTier === 'pro' || isBackendPro;
+  const tier = isPro ? 'pro' : rcTier;
 
   return {
     tier,
-    isPro: tier === 'pro',
+    isPro,
     isLoading,
     error,
     subscribe,

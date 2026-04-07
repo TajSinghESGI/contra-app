@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   StyleSheet,
-  Share,
   Image,
 } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { ChallengeShareCard } from '@/components/debate/ChallengeShareCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -164,11 +166,35 @@ export default function ChallengeResultScreen() {
     } as any);
   };
 
-  const handleShare = async () => {
-    const myScore = iAmFrom ? fromScore : toScore;
-    await Share.share({
-      message: `J'ai scoré ${myScore}/100 dans un défi CONTRA sur "${challenge.topic}" ! Télécharge Contra et montre ce que tu vaux.`,
-    });
+  const [showSharePreview, setShowSharePreview] = React.useState(false);
+  const shareCardRef = useRef<View>(null);
+
+  const myScore = iAmFrom ? fromScore : toScore;
+  const theirScore = iAmFrom ? toScore : fromScore;
+  const myName = iAmFrom ? (challenge.from.name ?? challenge.from.pseudo ?? '') : (challenge.to.name ?? challenge.to.pseudo ?? '');
+  const opponentName = iAmFrom ? (challenge.to.name ?? challenge.to.pseudo ?? '') : (challenge.from.name ?? challenge.from.pseudo ?? '');
+
+  const handleShare = () => setShowSharePreview(true);
+
+  const handleShareCapture = async () => {
+    try {
+      if (!shareCardRef.current) {
+        console.warn('Share: ref not ready');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+      const uri = await captureRef(shareCardRef.current, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+      setShowSharePreview(false);
+      await new Promise((r) => setTimeout(r, 100));
+      await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+    } catch (e: any) {
+      console.error('Share capture failed:', e?.message ?? e);
+      setShowSharePreview(false);
+    }
   };
 
   return (
@@ -284,6 +310,33 @@ export default function ChallengeResultScreen() {
           </Pressable>
         </Animated.View>
       </ScrollView>
+
+      {/* Share preview modal */}
+      {showSharePreview && (
+        <View style={styles.shareOverlay}>
+          <View style={styles.shareModal}>
+            <View ref={shareCardRef} collapsable={false}>
+            <ChallengeShareCard
+              myName={myName}
+              opponentName={opponentName}
+              myScore={myScore}
+              opponentScore={theirScore}
+              topic={challenge.topic}
+              won={iWon}
+            />
+            </View>
+            <View style={styles.shareActions}>
+              <Pressable style={styles.shareBtn} onPress={handleShareCapture}>
+                <Icon name="upload" size={16} color={colors['on-primary']} />
+                <Text style={styles.shareBtnText}>Partager</Text>
+              </Pressable>
+              <Pressable style={styles.shareClose} onPress={() => setShowSharePreview(false)}>
+                <Text style={styles.shareCloseText}>Fermer</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -522,5 +575,50 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontSize: fs(14),
     letterSpacing: 0.5,
     color: colors.primary,
+  },
+
+  // Share modal
+  shareOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareModal: {
+    alignItems: 'center',
+    gap: spacing[4],
+  },
+  shareActions: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    alignItems: 'center',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[3],
+    borderRadius: radius.full,
+  },
+  shareBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(14),
+    color: colors['on-primary'],
+  },
+  shareClose: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  shareCloseText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(14),
+    color: '#AAAAAA',
   },
 });

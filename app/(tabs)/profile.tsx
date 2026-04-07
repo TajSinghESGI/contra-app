@@ -3,12 +3,13 @@ import { AnimatedThemeToggle } from '@/components/ui/AnimatedThemeToggle';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import Icon from '@/components/ui/Icon';
-import { DIFFICULTY_LEVELS, FONT_SIZE_OPTIONS, fonts, radius, shadows, spacing, type ColorTokens, type FontSizeOption } from '@/constants/tokens';
+import { DIFFICULTY_LEVELS, FONT_SIZE_OPTIONS, LEAGUE_CONFIG, fonts, radius, shadows, spacing, type ColorTokens, type FontSizeOption } from '@/constants/tokens';
+import { Ionicons } from '@expo/vector-icons';
 import { useFontSizeStore } from '@/store/fontSizeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { useTopicStore } from '@/store/topicStore';
-import { useProgressionStore } from '@/store/progressionStore';
+import { useProgressionStore, DEBATER_LEVELS } from '@/store/progressionStore';
 import { useStreakStore } from '@/store/streakStore';
 import { useBadgeStore, BADGE_DEFS } from '@/store/badgeStore';
 import { useFriendStore } from '@/store/friendStore';
@@ -20,7 +21,6 @@ import { logoutUser } from '@/services/revenuecat';
 import { queryClient } from '@/services/queryClient';
 import type { AuthUser } from '@/services/api';
 import * as ImagePicker from 'expo-image-picker';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { AnimatedAvatarPicker } from '@/components/ui/AnimatedAvatarPicker';
 import {
   ActivityIndicator,
@@ -310,12 +310,12 @@ function SettingRow({ label, badge, onPress }: { label: string; badge?: number; 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const logout = useAuthStore((s) => s.logout);
   const { colors, isDark, setMode, typography, fs } = useTheme();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const currentStreak = useStreakStore((s) => s.currentStreak);
-  const { totalDebates, currentLevel } = useProgressionStore();
+  const { totalDebates, currentLevel, xp, xpProgress, xpForNextLevel, league } = useProgressionStore();
   const unlockedIds = useBadgeStore((s) => s.unlockedIds);
   const unlockedBadges = useBadgeStore((s) => s.unlockedBadges);
   const [profile, setProfile] = useState<AuthUser | null>(null);
@@ -555,18 +555,34 @@ export default function ProfileScreen() {
               </Pressable>
             );
           })()}
-          {[
-            t('profile.debates', { n: profile?.total_debates ?? totalDebates }),
-            `${profile?.total_score ?? 0} pts`,
-            ...(currentStreak >= 1 ? [`🔥 ${t('home.streakDays', { count: currentStreak })}`] : []),
-          ].map((stat) => (
-            <View key={stat} style={styles.statsPill}>
-              <Text style={styles.statsPillText}>{stat}</Text>
-            </View>
-          ))}
-          <Pressable style={styles.statsPill} onPress={() => openSheet('badges')}>
-            <Text style={styles.statsPillText}>🏅 {unlockedIds.length} {t('profile.badges')}</Text>
+          <View style={styles.statsPill}>
+            <Icon name="documents-copy" size={13} color={colors['on-surface-variant']} />
+            <Text style={styles.statsPillText}>{profile?.total_debates ?? totalDebates}</Text>
+          </View>
+          <Pressable style={styles.statsPill} onPress={() => router.push('/badges')}>
+            <Icon name="star" size={13} color={colors['on-surface-variant']} />
+            <Text style={styles.statsPillText}>{unlockedIds.length}</Text>
           </Pressable>
+          <View style={[styles.statsPill, { backgroundColor: `${LEAGUE_CONFIG[league].color}12` }]}>
+            <Icon name="crown" size={13} color={LEAGUE_CONFIG[league].color} />
+            <Text style={[styles.statsPillText, { color: LEAGUE_CONFIG[league].color }]}>
+              {LEAGUE_CONFIG[league].label[i18n.language === 'en' ? 'en' : 'fr']}
+            </Text>
+          </View>
+        </View>
+
+        {/* XP bar */}
+        <View style={styles.xpContainer}>
+          <View style={styles.xpLevelRow}>
+            <Text style={styles.xpLevelCurrent}>{currentLevel.label}</Text>
+            <Text style={styles.xpLevelNext}>{xpProgress < 1
+              ? DEBATER_LEVELS[DEBATER_LEVELS.findIndex((l) => l.id === currentLevel.id) + 1]?.label ?? ''
+              : ''}</Text>
+          </View>
+          <View style={styles.xpBarTrack}>
+            <View style={[styles.xpBarFill, { width: `${Math.round(xpProgress * 100)}%` }]} />
+          </View>
+          <Text style={styles.xpLabel}>{xp.toLocaleString()} / {xpForNextLevel.toLocaleString()} XP</Text>
         </View>
       </View>
 
@@ -753,6 +769,46 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontFamily: fonts.medium,
     fontSize: fs(12),
     color: colors['on-surface'],
+  },
+
+  // XP bar
+  xpContainer: {
+    width: '100%',
+    paddingHorizontal: spacing[5],
+    marginTop: spacing[3],
+    gap: spacing[1],
+  },
+  xpBarTrack: {
+    height: 4,
+    backgroundColor: colors['surface-container-high'],
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  xpBarFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  xpLevelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing[1],
+  },
+  xpLevelCurrent: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(11),
+    color: colors['on-surface'],
+  },
+  xpLevelNext: {
+    fontFamily: fonts.regular,
+    fontSize: fs(11),
+    color: colors['outline-variant'],
+  },
+  xpLabel: {
+    fontFamily: fonts.medium,
+    fontSize: fs(11),
+    color: colors['outline-variant'],
+    textAlign: 'center',
   },
 
   // Badges

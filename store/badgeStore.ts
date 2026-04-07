@@ -24,7 +24,7 @@ export interface BadgeDef {
 export const BADGE_DEFS: BadgeDef[] = [
   {
     id: 'debatteur',
-    icon: '🎯',
+    icon: 'chatbubbles-outline',
     labelKey: 'badges.debatteur',
     levels: [
       { level: 1, labelKey: 'badges.debatteur', descKey: 'badges.debatteur_1' },
@@ -34,7 +34,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'score',
-    icon: '⭐',
+    icon: 'star-outline',
     labelKey: 'badges.score',
     levels: [
       { level: 1, labelKey: 'badges.score', descKey: 'badges.score_1' },
@@ -44,7 +44,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'streak',
-    icon: '🔥',
+    icon: 'flame-outline',
     labelKey: 'badges.streak',
     levels: [
       { level: 1, labelKey: 'badges.streak', descKey: 'badges.streak_1' },
@@ -54,7 +54,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'logicien',
-    icon: '🧠',
+    icon: 'git-merge-outline',
     labelKey: 'badges.logicien',
     levels: [
       { level: 1, labelKey: 'badges.logicien', descKey: 'badges.logicien_1' },
@@ -64,7 +64,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'orateur',
-    icon: '🎤',
+    icon: 'megaphone-outline',
     labelKey: 'badges.orateur',
     levels: [
       { level: 1, labelKey: 'badges.orateur', descKey: 'badges.orateur_1' },
@@ -74,7 +74,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'enqueteur',
-    icon: '🔍',
+    icon: 'search-outline',
     labelKey: 'badges.enqueteur',
     levels: [
       { level: 1, labelKey: 'badges.enqueteur', descKey: 'badges.enqueteur_1' },
@@ -84,7 +84,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'creatif',
-    icon: '💡',
+    icon: 'bulb-outline',
     labelKey: 'badges.creatif',
     levels: [
       { level: 1, labelKey: 'badges.creatif', descKey: 'badges.creatif_1' },
@@ -94,7 +94,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'equilibriste',
-    icon: '⚖️',
+    icon: 'options-outline',
     labelKey: 'badges.equilibriste',
     levels: [
       { level: 1, labelKey: 'badges.equilibriste', descKey: 'badges.equilibriste_1' },
@@ -104,7 +104,7 @@ export const BADGE_DEFS: BadgeDef[] = [
   },
   {
     id: 'brutal',
-    icon: '💀',
+    icon: 'skull-outline',
     labelKey: 'badges.brutal',
     levels: [
       { level: 1, labelKey: 'badges.brutal', descKey: 'badges.brutal_1' },

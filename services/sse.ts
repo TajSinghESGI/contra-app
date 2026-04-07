@@ -1,6 +1,7 @@
 /**
  * SSE wrapper for the CONTRA debate streaming endpoint.
  * Uses react-native-sse for EventSource support in React Native.
+ * Includes automatic retry with exponential backoff.
  */
 
 import EventSource from 'react-native-sse';
@@ -22,11 +23,16 @@ export interface SSEToken {
 }
 
 // ---------------------------------------------------------------------------
-// DebateSSE class
+// DebateSSE class — with retry logic
 // ---------------------------------------------------------------------------
+
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [1000, 2000, 4000]; // exponential backoff
 
 export class DebateSSE {
   private eventSource: EventSource | null = null;
+  private retryCount = 0;
+  private retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async connect(
     debateId: string,
@@ -35,7 +41,16 @@ export class DebateSSE {
     onDone: (messageId: string, score: number) => void,
   ): Promise<void> {
     this.disconnect();
+    this.retryCount = 0;
+    await this._connect(debateId, onToken, onError, onDone);
+  }
 
+  private async _connect(
+    debateId: string,
+    onToken: (token: SSEToken) => void,
+    onError: (error: any) => void,
+    onDone: (messageId: string, score: number) => void,
+  ): Promise<void> {
     let sseToken: string;
     try {
       sseToken = await getSseToken();
@@ -63,6 +78,8 @@ export class DebateSSE {
       }
 
       if (parsed.type === 'token') {
+        // Reset retry count on successful token (connection is alive)
+        this.retryCount = 0;
         onToken(parsed);
       } else if (parsed.type === 'done') {
         const messageId = parsed.message_id ?? '';
@@ -76,12 +93,28 @@ export class DebateSSE {
     });
 
     es.addEventListener('error', (error: any) => {
-      onError(error);
-      this.disconnect();
+      this.eventSource?.close();
+      this.eventSource = null;
+
+      // Attempt retry with backoff
+      if (this.retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAYS[this.retryCount] ?? 4000;
+        this.retryCount++;
+        this.retryTimeout = setTimeout(() => {
+          this._connect(debateId, onToken, onError, onDone);
+        }, delay);
+      } else {
+        // All retries exhausted — notify caller
+        onError(error);
+      }
     });
   }
 
   disconnect(): void {
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = null;
+    }
     if (this.eventSource !== null) {
       this.eventSource.close();
       this.eventSource = null;

@@ -14,7 +14,7 @@ import Icon from '@/components/ui/Icon';
 import Dropdown from '@/components/ui/Dropdown';
 import { Shimmer, ShimmerGroup } from '@/components/ui/Shimmer';
 import { useRouter } from 'expo-router';
-import { fonts, radius, shadows, spacing, type ColorTokens } from '@/constants/tokens';
+import { fonts, radius, shadows, spacing, LEAGUE_CONFIG, type ColorTokens, type LeagueId } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { SpectralWave } from '@/components/shared/SpectralWave';
 import { getGlobalRankings, getFriendsRankings, isTrialExpired, type RankingEntry as APIRankingEntry } from '@/services/api';
@@ -197,6 +197,7 @@ export default function RankingsScreen() {
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
   const [activeTab, setActiveTab] = useState<TabKey>('global');
   const [selectedPeriod, setSelectedPeriod] = useState('week');
+  const [activeLeague, setActiveLeague] = useState<LeagueId | 'all'>('all');
 
   const user = useAuthStore((s) => s.user);
   const trialExpired = isTrialExpired(user);
@@ -210,8 +211,9 @@ export default function RankingsScreen() {
     const load = async () => {
       setIsLoading(true);
       try {
+        const leagueParam = activeLeague !== 'all' ? activeLeague : undefined;
         const [globalData, friendsData] = await Promise.all([
-          getGlobalRankings(),
+          getGlobalRankings(leagueParam),
           getFriendsRankings(),
         ]);
         if (!cancelled) {
@@ -228,7 +230,7 @@ export default function RankingsScreen() {
     };
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [activeLeague]);
 
   const data = activeTab === 'global' ? globalRankings : friendsRankings;
 
@@ -278,6 +280,36 @@ export default function RankingsScreen() {
             </Dropdown.Content>
           </Dropdown>
         </View>
+
+        {/* League filter pills */}
+        {activeTab === 'global' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.leagueRow}>
+            <Pressable
+              onPress={() => setActiveLeague('all')}
+              style={[styles.leaguePill, activeLeague === 'all' && styles.leaguePillActive]}
+            >
+              <Text style={[styles.leaguePillText, activeLeague === 'all' && styles.leaguePillTextActive]}>
+                {t('rankings.allLeagues')}
+              </Text>
+            </Pressable>
+            {(Object.keys(LEAGUE_CONFIG) as LeagueId[]).map((id) => {
+              const cfg = LEAGUE_CONFIG[id];
+              const isActive = activeLeague === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => setActiveLeague(id)}
+                  style={[styles.leaguePill, isActive && { backgroundColor: `${cfg.color}20` }]}
+                >
+                  <Ionicons name={cfg.icon as any} size={14} color={isActive ? cfg.color : colors['outline-variant']} />
+                  <Text style={[styles.leaguePillText, isActive && { color: cfg.color }]}>
+                    {cfg.label.fr}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {trialExpired ? (
@@ -398,6 +430,33 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
   togglePillTextActive: {
     fontFamily: fonts.semibold,
     color: colors['on-primary'],
+  },
+
+  // League pills
+  leagueRow: {
+    gap: spacing[2],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[3],
+  },
+  leaguePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors['surface-container-low'],
+  },
+  leaguePillActive: {
+    backgroundColor: colors['surface-container-high'],
+  },
+  leaguePillText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(12),
+    color: colors['outline-variant'],
+  },
+  leaguePillTextActive: {
+    color: colors['on-surface'],
   },
 
   filterTrigger: {
