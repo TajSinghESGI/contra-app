@@ -45,3 +45,4 @@ app-example
 
 /src-template/*
 /rn-make*
+.env.local

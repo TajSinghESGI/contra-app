@@ -1,7 +1,9 @@
-const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // Allow importing JSON files (e.g. fontello config.json)
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'json'];

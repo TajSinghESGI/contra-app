@@ -5,6 +5,7 @@ import { useBottomSheet } from '@/components/ui/BottomSheetStack';
 import Icon from '@/components/ui/Icon';
 import { DIFFICULTY_LEVELS, FONT_SIZE_OPTIONS, LEAGUE_CONFIG, fonts, radius, shadows, spacing, type ColorTokens, type FontSizeOption } from '@/constants/tokens';
 import { Ionicons } from '@expo/vector-icons';
+import { Alert } from 'react-native';
 import { useFontSizeStore } from '@/store/fontSizeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
@@ -16,7 +17,7 @@ import { useFriendStore } from '@/store/friendStore';
 import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getProfile, updateProfile, uploadAvatar, reportBug, isTrialExpired, startTrial } from '@/services/api';
+import { getProfile, updateProfile, uploadAvatar, reportBug, isTrialExpired, startTrial, deleteAccount } from '@/services/api';
 import { logoutUser } from '@/services/revenuecat';
 import { queryClient } from '@/services/queryClient';
 import type { AuthUser } from '@/services/api';
@@ -631,6 +632,34 @@ export default function ProfileScreen() {
       </View>
 
 
+      {/* Delete account — bottom */}
+      <Pressable
+        style={styles.deleteAccountBtn}
+        onPress={() => {
+          Alert.alert(
+            t('profile.deleteAccount'),
+            t('profile.deleteAccountConfirm'),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('profile.deleteAccountAction'),
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await deleteAccount();
+                    await logout();
+                    logoutUser();
+                    router.replace('/auth/login');
+                  } catch {}
+                },
+              },
+            ],
+          );
+        }}
+      >
+        <Text style={styles.deleteAccountText}>{t('profile.deleteAccount')}</Text>
+      </Pressable>
+
     </AnimatedHeaderScrollView>
     <Modal visible={avatarPickerOpen} transparent animationType="none" statusBarTranslucent>
       <AnimatedAvatarPicker
@@ -789,6 +818,20 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     borderRadius: 2,
     backgroundColor: colors.primary,
   },
+  deleteAccountBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
+    marginTop: spacing[6],
+    marginBottom: spacing[4],
+  },
+  deleteAccountText: {
+    fontFamily: fonts.medium,
+    fontSize: fs(13),
+    color: colors.error,
+    textAlign: 'center',
+  },
+
   xpLevelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

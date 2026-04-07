@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { AuthUser } from '@/services/api';
 import i18n from '@/i18n';
 import { useTopicStore } from '@/store/topicStore';
+import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/services/errorReporting';
 
 const TOKEN_KEY = 'contra_auth_token';
 const REFRESH_KEY = 'contra_refresh_token';
@@ -112,9 +113,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
     ]);
     set({ isLogged: true, token, refreshToken: refresh, user });
+    setSentryUser(user.id, user.email, user.pseudo);
   },
 
   logout: async () => {
+    clearSentryUser();
     await Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_KEY),

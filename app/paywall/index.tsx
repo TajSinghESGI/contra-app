@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -52,7 +53,7 @@ export default function PaywallScreen() {
   const { colors, typography, fs } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors, typography, fs), [colors, typography, fs]);
-  const { subscribe, restore } = useSubscription();
+  const { subscribe, restore, isPro, tier } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('pro_annual');
   const [packages, setPackages] = useState<{ monthly?: PurchasesPackage; yearly?: PurchasesPackage }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -114,6 +115,54 @@ export default function PaywallScreen() {
       setIsLoading(false);
     }
   };
+
+  // Already subscribed — show management screen
+  if (isPro) {
+    return (
+      <View style={[styles.root, { paddingBottom: insets.bottom, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing[6] }]}>
+        <Pressable onPress={() => router.back()} style={{ position: 'absolute', top: insets.top + spacing[3], left: spacing[5] }}>
+          <Icon name="chevron-left" size={22} color={dark.text} />
+        </Pressable>
+
+        <Icon name="verified-check" size={48} color={dark.accent} />
+        <Text style={[styles.heroTitle, { marginTop: spacing[4], textAlign: 'center' }]}>
+          {t('paywall.alreadyPro')}
+        </Text>
+        <Text style={[styles.legalText, { marginTop: spacing[2], marginBottom: spacing[6] }]}>
+          {t('paywall.alreadyProSub')}
+        </Text>
+
+        <Pressable
+          style={{ width: '100%' }}
+          onPress={() => {
+            if (Platform.OS === 'ios') {
+              Linking.openURL('https://apps.apple.com/account/subscriptions');
+            } else {
+              Linking.openURL('https://play.google.com/store/account/subscriptions');
+            }
+          }}
+        >
+          <LinearGradient
+            colors={[dark.accent, dark.accentDim]}
+            start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+            style={styles.ctaGradient}
+          >
+            <Text style={styles.ctaText}>{t('paywall.manageSubscription')}</Text>
+          </LinearGradient>
+        </Pressable>
+
+        <View style={styles.legalLinks}>
+          <Pressable onPress={() => Linking.openURL('https://contra-app.cloud/terms')}>
+            <Text style={styles.legalLinkText}>{t('paywall.termsOfUse')}</Text>
+          </Pressable>
+          <Text style={styles.legalSep}>·</Text>
+          <Pressable onPress={() => Linking.openURL('https://contra-app.cloud/privacy')}>
+            <Text style={styles.legalLinkText}>{t('paywall.privacyPolicy')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
@@ -261,6 +310,16 @@ export default function PaywallScreen() {
         <Pressable hitSlop={8} accessibilityRole="button" onPress={handleRestore}>
           <Text style={styles.restoreText}>{t('paywall.restore')}</Text>
         </Pressable>
+
+        <View style={styles.legalLinks}>
+          <Pressable onPress={() => Linking.openURL('https://contra-app.cloud/terms')}>
+            <Text style={styles.legalLinkText}>{t('paywall.termsOfUse')}</Text>
+          </Pressable>
+          <Text style={styles.legalSep}>·</Text>
+          <Pressable onPress={() => Linking.openURL('https://contra-app.cloud/privacy')}>
+            <Text style={styles.legalLinkText}>{t('paywall.privacyPolicy')}</Text>
+          </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -508,5 +567,22 @@ const createStyles = (_colors: ColorTokens, typography: any, fs: (n: number) => 
       fontSize: fs(13),
       color: dark.textDim,
       textDecorationLine: 'underline',
+    },
+    legalLinks: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing[2],
+      marginTop: spacing[3],
+    },
+    legalLinkText: {
+      fontFamily: fonts.regular,
+      fontSize: fs(11),
+      color: dark.textDim,
+      textDecorationLine: 'underline',
+    },
+    legalSep: {
+      fontSize: fs(11),
+      color: dark.textFaint,
     },
   });

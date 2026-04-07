@@ -31,6 +31,21 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://0b933526d35efc67bce1a46ce450a6ee@o4511128264704000.ingest.de.sentry.io/4511177690513488',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,7 +53,7 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [fontsLoaded] = useFonts({
     icons: require('../assets/fonts/icons.ttf'),
     'SFProRounded-Thin':     require('../assets/fonts/SF-Pro-Rounded-Thin.otf'),
@@ -213,7 +228,7 @@ export default function RootLayout() {
     </QueryClientProvider>
     </ErrorBoundary>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

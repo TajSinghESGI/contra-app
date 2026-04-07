@@ -439,6 +439,9 @@ fontSize: {
     badgesUnlocked: 'badges unlocked',
     nextLevel: 'Next level',
     signOut: 'Sign Out',
+    deleteAccount: 'Delete my account',
+    deleteAccountConfirm: 'Are you sure you want to delete your account? This action cannot be undone.',
+    deleteAccountAction: 'Delete',
     darkMode: 'Dark mode',
     language: {
       french: 'Français',
@@ -693,6 +696,8 @@ fontSize: {
     cta: 'Start — 7 days free',
     legal: 'No credit card · Cancel anytime',
     restore: 'Restore purchases',
+    termsOfUse: 'Terms of Use',
+    privacyPolicy: 'Privacy Policy',
   },
   friends: {
     title: 'Friends',

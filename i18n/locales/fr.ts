@@ -439,6 +439,9 @@ fontSize: {
     badgesUnlocked: 'badges débloqués',
     nextLevel: 'Prochain niveau',
     signOut: 'Se déconnecter',
+    deleteAccount: 'Supprimer mon compte',
+    deleteAccountConfirm: 'Es-tu sûr de vouloir supprimer ton compte ? Cette action est irréversible.',
+    deleteAccountAction: 'Supprimer',
     darkMode: 'Mode sombre',
     language: {
       french: 'Français',
@@ -693,6 +696,8 @@ fontSize: {
     cta: 'Commencer — 7 jours offerts',
     legal: 'Sans carte bancaire · Résiliation à tout moment',
     restore: 'Restaurer les achats',
+    termsOfUse: 'Conditions d\'utilisation',
+    privacyPolicy: 'Politique de confidentialité',
   },
   friends: {
     title: 'Amis',

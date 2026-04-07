@@ -7,6 +7,7 @@
 import EventSource from 'react-native-sse';
 import { useAuthStore } from '@/store/authStore';
 import { getSseToken } from '@/services/api';
+import { captureError } from '@/services/errorReporting';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.contra-app.cloud';
 
@@ -104,7 +105,8 @@ export class DebateSSE {
           this._connect(debateId, onToken, onError, onDone);
         }, delay);
       } else {
-        // All retries exhausted — notify caller
+        // All retries exhausted — report + notify caller
+        captureError(error, { action: 'SSE connect', extra: { debateId, retries: MAX_RETRIES } });
         onError(error);
       }
     });

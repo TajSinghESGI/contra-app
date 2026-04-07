@@ -1,5 +1,6 @@
 import type { ScoreResult } from '@/store/debateStore';
 import { useAuthStore } from '@/store/authStore';
+import { captureError, addBreadcrumb } from '@/services/errorReporting';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.contra-app.cloud';
 
@@ -157,6 +158,10 @@ export async function updateProfile(data: Partial<{
   });
 }
 
+export async function deleteAccount(): Promise<void> {
+  await apiFetch<void>('/api/auth/delete-account/', { method: 'DELETE' });
+}
+
 export async function uploadAvatar(uri: string): Promise<{ avatar_url: string }> {
   const token = getAuthToken();
   const formData = new FormData();
@@ -245,6 +250,10 @@ async function apiFetch<T>(
     }
     const err = new Error(errorMessage) as Error & { code?: string };
     err.code = errorCode;
+    // Report 4xx/5xx to Sentry (skip 401 which is handled by token refresh)
+    if (response.status !== 401) {
+      captureError(err, { action: `${method} ${path}`, extra: { status: response.status, code: errorCode } });
+    }
     throw err;
   }
 
