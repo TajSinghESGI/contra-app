@@ -88,7 +88,7 @@ export function ChallengeShareCard({ myName, opponentName, myScore, opponentScor
 
         {/* Footer — logo */}
         <View style={styles.footer}>
-          <Image source={require('@/assets/images/logo-contra.png')} style={styles.footerLogo} />
+          <Image source={require('@/assets/images/react-logo.png')} style={styles.footerLogo} />
         </View>
       </View>
     </View>

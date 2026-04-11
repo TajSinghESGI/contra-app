@@ -16,6 +16,9 @@ const MILESTONE_LABELS: Record<number, { fr: string; en: string }> = {
   7: { fr: 'Une semaine !', en: 'One week!' },
   14: { fr: '2 semaines !', en: '2 weeks!' },
   30: { fr: 'Un mois !', en: 'One month!' },
+  60: { fr: '2 mois !', en: '2 months!' },
+  100: { fr: '100 jours !', en: '100 days!' },
+  365: { fr: 'Un an !', en: 'One year!' },
 };
 
 export function StreakMilestoneModal({ milestone, onDismiss }: Props) {

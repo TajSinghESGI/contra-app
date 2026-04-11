@@ -12,6 +12,7 @@ import {
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { ShareCard } from '@/components/debate/ShareCard';
+import { ShareCardStory } from '@/components/debate/ShareCardStory';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -88,6 +89,7 @@ function ResultScreenInner() {
 
   const [score, setScore] = React.useState<ScoreResult | null>(null);
   const [showSharePreview, setShowSharePreview] = React.useState(false);
+  const [shareFormat, setShareFormat] = React.useState<'card' | 'story'>('card');
   const confettiRef = useRef<PIConfettiMethods>(null);
   const shareCardRef = useRef<View>(null);
 
@@ -188,16 +190,70 @@ function ResultScreenInner() {
       <Modal visible={showSharePreview && !!score} transparent animationType="fade" onRequestClose={() => setShowSharePreview(false)}>
         <View style={styles.shareOverlay}>
           <View style={styles.shareModal}>
+            {/* Format toggle pills */}
+            <View style={styles.formatToggle}>
+              <Pressable
+                style={[
+                  styles.formatPill,
+                  shareFormat === 'card'
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: '#1A1A1A' },
+                ]}
+                onPress={() => setShareFormat('card')}
+              >
+                <Text
+                  style={[
+                    styles.formatPillText,
+                    { color: shareFormat === 'card' ? colors['on-primary'] : '#888' },
+                  ]}
+                >
+                  Card
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.formatPill,
+                  shareFormat === 'story'
+                    ? { backgroundColor: colors.primary }
+                    : { backgroundColor: '#1A1A1A' },
+                ]}
+                onPress={() => setShareFormat('story')}
+              >
+                <Text
+                  style={[
+                    styles.formatPillText,
+                    { color: shareFormat === 'story' ? colors['on-primary'] : '#888' },
+                  ]}
+                >
+                  Story
+                </Text>
+              </Pressable>
+            </View>
+
             <View ref={shareCardRef} collapsable={false}>
-              <ShareCard
-                score={score?.total ?? 0}
-                topic={topicParam || score?.topic || ''}
-                logic={score?.logic ?? 0}
-                rhetoric={score?.rhetoric ?? 0}
-                evidence={score?.evidence ?? 0}
-                originality={score?.originality ?? 0}
-                verdict={score?.verdict || ''}
-              />
+              {shareFormat === 'story' ? (
+                <ShareCardStory
+                  score={score?.total ?? 0}
+                  topic={topicParam || score?.topic || ''}
+                  logic={score?.logic ?? 0}
+                  rhetoric={score?.rhetoric ?? 0}
+                  evidence={score?.evidence ?? 0}
+                  originality={score?.originality ?? 0}
+                  verdict={score?.verdict || ''}
+                  debateId={id}
+                />
+              ) : (
+                <ShareCard
+                  score={score?.total ?? 0}
+                  topic={topicParam || score?.topic || ''}
+                  logic={score?.logic ?? 0}
+                  rhetoric={score?.rhetoric ?? 0}
+                  evidence={score?.evidence ?? 0}
+                  originality={score?.originality ?? 0}
+                  verdict={score?.verdict || ''}
+                  debateId={id}
+                />
+              )}
             </View>
             <View style={styles.shareActions}>
               <Pressable style={styles.shareBtn} onPress={handleShareCapture}>
@@ -521,6 +577,20 @@ const createStyles = (colors: ColorTokens, typography: any, fs: (n: number) => n
     fontFamily: fonts.semibold,
     fontSize: fs(14),
     color: colors['on-primary'],
+  },
+  formatToggle: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginBottom: spacing[3],
+  },
+  formatPill: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    borderRadius: radius.full,
+  },
+  formatPillText: {
+    fontFamily: fonts.semibold,
+    fontSize: fs(13),
   },
   shareClose: {
     paddingHorizontal: spacing[4],

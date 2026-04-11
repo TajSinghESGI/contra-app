@@ -1,127 +1,127 @@
 export const lightColors = {
-  // Surfaces (subtle warm-green tint)
-  background: '#F8F9F7',
-  surface: '#F8F9F7',
-  'surface-bright': '#F8F9F7',
-  'surface-container-lowest': '#ffffff',
-  'surface-container-low': '#F1F3F0',
-  'surface-container': '#EAEDE9',
-  'surface-container-high': '#E3E8E2',
-  'surface-container-highest': '#DCE2DB',
-  'surface-dim': '#D2D9D1',
-  'surface-tint': '#1B211A',
-  'surface-variant': '#DCE2DB',
+  // Surfaces — soft warm off-white hierarchy
+  background: '#FCF8F8',
+  surface: '#FCF8F8',
+  'surface-bright': '#FFFFFF',
+  'surface-container-lowest': '#FFFFFF',
+  'surface-container-low': '#F6F2F2',
+  'surface-container': '#F0ECEC',
+  'surface-container-high': '#EAE6E6',
+  'surface-container-highest': '#E3DFDF',
+  'surface-dim': '#DAD6D6',
+  'surface-tint': '#031B44',
+  'surface-variant': '#EAE6E6',
 
-  // Primary (dark olive green)
-  primary: '#1B211A',
-  'primary-dim': '#131812',
-  'primary-container': '#DCE3DB',
-  'on-primary': '#F5F7F4',
-  'on-primary-container': '#1B211A',
+  // Primary — deep navy
+  primary: '#031B44',
+  'primary-dim': '#021230',
+  'primary-container': '#DDE4F0',
+  'on-primary': '#FCF8F8',
+  'on-primary-container': '#031B44',
 
-  // Secondary
-  secondary: '#2E3A2C',
-  'secondary-container': '#DBE3D9',
-  'on-secondary': '#F5F7F4',
+  // Secondary — muted navy
+  secondary: '#1A3055',
+  'secondary-container': '#E5ECF4',
+  'on-secondary': '#FCF8F8',
 
-  // Tertiary
-  tertiary: '#3A4D37',
-  'tertiary-container': '#DEE6DC',
+  // Tertiary — softer navy
+  tertiary: '#2D4A6E',
+  'tertiary-container': '#E8EDF5',
 
   // On-surfaces
-  'on-surface': '#2A2E28',
-  'on-surface-variant': '#565C54',
-  'on-background': '#2A2E28',
+  'on-surface': '#031B44',
+  'on-surface-variant': '#3A4E6E',
+  'on-background': '#031B44',
 
   // Borders
-  outline: '#727972',
-  'outline-variant': '#ABB2AB',
+  outline: '#6B7A92',
+  'outline-variant': '#A8B3C2',
 
   // Error
-  error: '#9f403d',
-  'error-container': '#fe8983',
-  'on-error': '#fff7f6',
+  error: '#9F403D',
+  'error-container': '#F4D4D2',
+  'on-error': '#FFF7F6',
 
   // Inverse
-  'inverse-surface': '#0E140D',
-  'inverse-on-surface': '#9C9D9C',
-  'inverse-primary': '#ffffff',
+  'inverse-surface': '#02062F',
+  'inverse-on-surface': '#C5CEE0',
+  'inverse-primary': '#739DCF',
 
-  // Dialectical accents — user vs AI
-  'accent-user': '#6B1D2A',
-  'accent-user-container': 'rgba(107,29,42,0.14)',
-  'accent-user-dim': '#541724',
-  'accent-ai': '#2A3A28',
-  'accent-ai-container': 'rgba(42,58,40,0.12)',
-  'accent-ai-dim': '#1E2C1D',
+  // Dialectical accents — user (warm) vs AI (navy)
+  'accent-user': '#8B1A2A',
+  'accent-user-container': 'rgba(139,26,42,0.14)',
+  'accent-user-dim': '#6B1420',
+  'accent-ai': '#031B44',
+  'accent-ai-container': 'rgba(3,27,68,0.12)',
+  'accent-ai-dim': '#021230',
 
   // Glassmorphism
-  glass: 'rgba(248,249,247,0.75)',
-  'glass-border': 'rgba(171,178,171,0.12)',
+  glass: 'rgba(252,248,248,0.75)',
+  'glass-border': 'rgba(107,122,146,0.12)',
 } as const;
 
 export type ColorTokens = { [K in keyof typeof lightColors]: string };
 
 export const darkColors: ColorTokens = {
-  // Surfaces — neutral dark gray, hiérarchie ascendante
-  background: '#181818',
-  surface: '#181818',
-  'surface-bright': '#2A2A2A',
-  'surface-container-lowest': '#1F1F1F',
-  'surface-container-low': '#262626',
-  'surface-container': '#2D2D2D',
-  'surface-container-high': '#353535',
-  'surface-container-highest': '#3D3D3D',
-  'surface-dim': '#111111',
-  'surface-tint': '#FF5722',
-  'surface-variant': '#353535',
+  // Surfaces — deep navy hierarchy
+  background: '#02062F',
+  surface: '#02062F',
+  'surface-bright': '#1A2048',
+  'surface-container-lowest': '#080D38',
+  'surface-container-low': '#0E1340',
+  'surface-container': '#141A48',
+  'surface-container-high': '#1A2050',
+  'surface-container-highest': '#212758',
+  'surface-dim': '#010320',
+  'surface-tint': '#739DCF',
+  'surface-variant': '#1A2050',
 
-  // Primary — vibrant orange
-  primary: '#FF5722',
-  'primary-dim': '#E64A19',
-  'primary-container': '#3D1A0E',
-  'on-primary': '#FFFFFF',
-  'on-primary-container': '#FFCCBC',
+  // Primary — soft sky blue
+  primary: '#739DCF',
+  'primary-dim': '#5A85BD',
+  'primary-container': '#1A3052',
+  'on-primary': '#02062F',
+  'on-primary-container': '#C5D8F0',
 
-  // Secondary — deep purple
-  secondary: '#9575CD',
-  'secondary-container': '#2A1650',
-  'on-secondary': '#FFFFFF',
+  // Secondary — muted blue
+  secondary: '#A0B8D8',
+  'secondary-container': '#1E2E4A',
+  'on-secondary': '#02062F',
 
-  // Tertiary — bright yellow
-  tertiary: '#FFEB3B',
-  'tertiary-container': '#3D3510',
+  // Tertiary — lighter blue
+  tertiary: '#B8C9E0',
+  'tertiary-container': '#243550',
 
   // On-surfaces
-  'on-surface': '#F7F7F7',
-  'on-surface-variant': '#A0A0A0',
-  'on-background': '#F7F7F7',
+  'on-surface': '#E8EEF7',
+  'on-surface-variant': '#A0AFC8',
+  'on-background': '#E8EEF7',
 
   // Borders
-  outline: '#6E6E6E',
-  'outline-variant': '#626262',
+  outline: '#5A6B88',
+  'outline-variant': '#3F4E68',
 
   // Error
-  error: '#FF6B68',
+  error: '#FF8A87',
   'error-container': '#5C1A18',
   'on-error': '#2A0806',
 
   // Inverse
-  'inverse-surface': '#F7F7F7',
-  'inverse-on-surface': '#181818',
-  'inverse-primary': '#E64A19',
+  'inverse-surface': '#E8EEF7',
+  'inverse-on-surface': '#02062F',
+  'inverse-primary': '#031B44',
 
-  // Dialectical accents — orange user vs purple AI
-  'accent-user': '#FF5722',
-  'accent-user-container': 'rgba(255,87,34,0.12)',
-  'accent-user-dim': '#E64A19',
-  'accent-ai': '#9575CD',
-  'accent-ai-container': 'rgba(103,58,183,0.12)',
-  'accent-ai-dim': '#7E57C2',
+  // Dialectical accents — user (warm) vs AI (blue)
+  'accent-user': '#FF8872',
+  'accent-user-container': 'rgba(255,136,114,0.12)',
+  'accent-user-dim': '#E56F5A',
+  'accent-ai': '#739DCF',
+  'accent-ai-container': 'rgba(115,157,207,0.12)',
+  'accent-ai-dim': '#5A85BD',
 
   // Glassmorphism
-  glass: 'rgba(24,24,24,0.92)',
-  'glass-border': 'rgba(255,87,34,0.08)',
+  glass: 'rgba(2,6,47,0.92)',
+  'glass-border': 'rgba(115,157,207,0.10)',
 } as const;
 
 // Default export for static usage (light mode) — prefer useTheme() for dynamic

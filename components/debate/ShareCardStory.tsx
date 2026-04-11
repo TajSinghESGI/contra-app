@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { fonts } from '@/constants/tokens';
 
-interface ShareCardProps {
+interface ShareCardStoryProps {
   score: number;
   topic: string;
   logic: number;
@@ -25,12 +25,21 @@ const BG_QUOTES = [
   'WORDS\nARE\nPOWER',
 ];
 
-export function ShareCard({ score, topic, logic, rhetoric, evidence, originality, verdict, debateId }: ShareCardProps) {
+export function ShareCardStory({
+  score,
+  topic,
+  logic,
+  rhetoric,
+  evidence,
+  originality,
+  verdict,
+  debateId,
+}: ShareCardStoryProps) {
   const bgQuote = BG_QUOTES[score % BG_QUOTES.length];
 
   const criteria = [
     { label: 'LOG', value: logic },
-    { label: 'RHÉ', value: rhetoric },
+    { label: 'RHE', value: rhetoric },
     { label: 'PRE', value: evidence },
     { label: 'ORI', value: originality },
   ];
@@ -40,42 +49,61 @@ export function ShareCard({ score, topic, logic, rhetoric, evidence, originality
       {/* Background quote watermark */}
       <Text style={styles.bgQuote}>{bgQuote}</Text>
 
-      {/* Side accent bar — neutral graphite */}
-      <View style={styles.sideBar}>
-        <Text style={styles.sideBarText}>CONTRA</Text>
+      {/* Top branding label */}
+      <View style={styles.brandingBar}>
+        <Text style={styles.brandingText}>CONTRA</Text>
       </View>
 
       {/* Content */}
       <View style={styles.content}>
-        {/* Score */}
+        {/* Large score */}
         <View style={styles.scoreSection}>
           <Text style={styles.scoreNumber}>{score}</Text>
           <Text style={styles.scoreSlash}>/100</Text>
         </View>
 
         {/* Verdict */}
-        <Text style={styles.verdict}>{verdict}</Text>
+        <Text style={styles.verdict} numberOfLines={2}>
+          {verdict}
+        </Text>
 
-        {/* Topic */}
+        {/* Topic box */}
         <View style={styles.topicBox}>
-          <Text style={styles.topicText} numberOfLines={3}>{topic}</Text>
+          <Text style={styles.topicText} numberOfLines={3}>
+            {topic}
+          </Text>
         </View>
 
-        {/* Stats row — uniform neutral color */}
-        <View style={styles.statsRow}>
-          {criteria.map((c) => (
-            <View key={c.label} style={styles.statItem}>
-              <Text style={styles.statValue}>{c.value}</Text>
-              <Text style={styles.statLabel}>{c.label}</Text>
-            </View>
-          ))}
+        {/* Criteria grid 2x2 */}
+        <View style={styles.criteriaGrid}>
+          <View style={styles.criteriaRow}>
+            {criteria.slice(0, 2).map((c) => (
+              <View key={c.label} style={styles.criteriaItem}>
+                <Text style={styles.criteriaValue}>{c.value}</Text>
+                <Text style={styles.criteriaLabel}>{c.label}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.criteriaRow}>
+            {criteria.slice(2, 4).map((c) => (
+              <View key={c.label} style={styles.criteriaItem}>
+                <Text style={styles.criteriaValue}>{c.value}</Text>
+                <Text style={styles.criteriaLabel}>{c.label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Footer — logo + URL */}
         <View style={styles.footer}>
-          <Image source={require('@/assets/images/react-logo.png')} style={styles.footerLogo} />
+          <Image
+            source={require('@/assets/images/react-logo.png')}
+            style={styles.footerLogo}
+          />
           {debateId ? (
-            <Text style={styles.footerUrl}>contra-app.cloud/d/{debateId}</Text>
+            <Text style={styles.footerUrl}>
+              contra-app.cloud/d/{debateId}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -86,6 +114,7 @@ export function ShareCard({ score, topic, logic, rhetoric, evidence, originality
 const styles = StyleSheet.create({
   card: {
     width: 300,
+    height: 533,
     backgroundColor: '#0A0A0A',
     borderRadius: 20,
     overflow: 'hidden',
@@ -95,47 +124,39 @@ const styles = StyleSheet.create({
   // Background watermark
   bgQuote: {
     position: 'absolute',
-    top: -10,
+    top: 20,
     left: -10,
     right: 0,
     fontFamily: fonts.bold,
-    fontSize: 72,
-    lineHeight: 74,
+    fontSize: 64,
+    lineHeight: 66,
     color: 'rgba(255,255,255,0.03)',
     letterSpacing: -3,
   },
 
-  // Side accent bar — neutral graphite
-  sideBar: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 32,
+  // Top branding bar
+  brandingBar: {
     backgroundColor: ACCENT_DIM,
+    paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  sideBarText: {
+  brandingText: {
     fontFamily: fonts.bold,
-    fontSize: 9,
-    width: 100,
-    textAlign: 'center',
+    fontSize: 11,
     color: '#EEEEEE',
-    letterSpacing: 1,
-    transform: [{ rotate: '-90deg' }],
-    writingDirection: 'ltr',
+    letterSpacing: 4,
   },
 
   // Main content
   content: {
-    paddingLeft: 22,
-    paddingRight: 50, // space for side bar
-    paddingTop: 28,
-    paddingBottom: 20,
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 16,
+    justifyContent: 'space-between',
   },
 
-  // Score — clean white, no color coding
+  // Score
   scoreSection: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -143,13 +164,13 @@ const styles = StyleSheet.create({
   },
   scoreNumber: {
     fontFamily: fonts.bold,
-    fontSize: 64,
-    lineHeight: 68,
+    fontSize: 72,
+    lineHeight: 76,
     color: '#FFFFFF',
   },
   scoreSlash: {
     fontFamily: fonts.light,
-    fontSize: 20,
+    fontSize: 22,
     color: '#444444',
     marginLeft: 4,
   },
@@ -157,12 +178,12 @@ const styles = StyleSheet.create({
   // Verdict
   verdict: {
     fontFamily: fonts.medium,
-    fontSize: 14,
+    fontSize: 15,
     color: '#777777',
     marginBottom: 16,
   },
 
-  // Topic — accent bar uses graphite
+  // Topic
   topicBox: {
     borderLeftWidth: 2,
     borderLeftColor: ACCENT,
@@ -171,33 +192,36 @@ const styles = StyleSheet.create({
   },
   topicText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     color: '#CCCCCC',
-    lineHeight: 19,
+    lineHeight: 20,
   },
 
-  // Stats — uniform light gray values
-  statsRow: {
-    flexDirection: 'row',
-    gap: 4,
+  // Criteria 2x2 grid
+  criteriaGrid: {
+    gap: 6,
     marginBottom: 16,
   },
-  statItem: {
+  criteriaRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  criteriaItem: {
     flex: 1,
     backgroundColor: '#141414',
-    borderRadius: 8,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
     gap: 2,
   },
-  statValue: {
+  criteriaValue: {
     fontFamily: fonts.bold,
-    fontSize: 16,
+    fontSize: 18,
     color: '#CCCCCC',
   },
-  statLabel: {
+  criteriaLabel: {
     fontFamily: fonts.medium,
-    fontSize: 7,
+    fontSize: 8,
     color: '#555555',
     letterSpacing: 1.5,
   },
@@ -207,7 +231,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
   },
   footerLogo: {
     width: 28,

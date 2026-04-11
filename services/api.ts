@@ -218,11 +218,25 @@ async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      signal: controller.signal,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   // Auto-refresh on 401 (expired token) — retry once
   if (response.status === 401 && !_isRetry && token) {
@@ -263,6 +277,46 @@ async function apiFetch<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+// ---------------------------------------------------------------------------
+// Polling helper for async-generated endpoints (202 Accepted pattern)
+// ---------------------------------------------------------------------------
+
+async function pollUntilReady<T>(
+  path: string,
+  maxAttempts = 15,
+  intervalMs = 2000,
+): Promise<T> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${BASE_URL}${path}`, { method: 'GET', headers });
+
+    if (response.status === 202) {
+      // Still generating — wait and retry
+      await new Promise(res => setTimeout(res, intervalMs));
+      continue;
+    }
+
+    if (response.status === 503) {
+      throw new Error('Generation failed. Please try again.');
+    }
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error((errorBody as any).detail ?? `API error ${response.status}`);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  throw new Error('Generation timed out. Please try again.');
 }
 
 // ---------------------------------------------------------------------------
@@ -460,7 +514,7 @@ export interface AnalysisSection {
 }
 
 export async function getDebateAnalysis(debateId: string): Promise<{ sections: AnalysisSection[] }> {
-  return apiFetch<{ sections: AnalysisSection[] }>(`/api/debates/${debateId}/analysis/`);
+  return pollUntilReady<{ sections: AnalysisSection[] }>(`/api/debates/${debateId}/analysis/`);
 }
 
 export interface CoachArgument {
@@ -482,7 +536,7 @@ export interface CoachingData {
 }
 
 export async function getDebateCoaching(debateId: string): Promise<CoachingData> {
-  return apiFetch<CoachingData>(`/api/debates/${debateId}/coach/`);
+  return pollUntilReady<CoachingData>(`/api/debates/${debateId}/coach/`);
 }
 
 // ---------------------------------------------------------------------------
@@ -732,6 +786,14 @@ export async function getSseToken(): Promise<string> {
 // ---------------------------------------------------------------------------
 // Push notifications
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Streak freeze
+// ---------------------------------------------------------------------------
+
+export async function useStreakFreeze(): Promise<void> {
+  await apiFetch('/api/auth/streak-freeze/', { method: 'POST' });
+}
 
 export async function savePushToken(token: string): Promise<void> {
   await apiFetch('/api/auth/push-token/', {

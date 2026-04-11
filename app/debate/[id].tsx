@@ -30,7 +30,6 @@ import { SiriProvider, useSiri } from '@/components/ui/AppleIntelligence';
 import { ShimmerEffect } from '@/components/ui/Shimmer';
 import { useDebate } from '@/hooks/useDebate';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
-import { useTTS } from '@/hooks/useTTS';
 import { abandonDebate, stopDebate, getDebateScore } from '@/services/api';
 import { useDebateStore } from '@/store/debateStore';
 import type { ScoreResult } from '@/store/debateStore';
@@ -72,15 +71,17 @@ function DebateScreenInner() {
   const [finalScore, setFinalScore] = useState<ScoreResult | null>(null);
   const [hasTriggeredOrb, setHasTriggeredOrb] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true);
 
-  // Voice input (STT)
+  // Voice input (STT) — auto-send after final transcript
+  const voiceSendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isListening, transcript, isAvailable: voiceAvailable, startListening, stopListening } = useVoiceInput((text) => {
     setInputText(text);
+    // Auto-send after 500ms delay so user sees the text briefly
+    if (voiceSendTimer.current) clearTimeout(voiceSendTimer.current);
+    voiceSendTimer.current = setTimeout(() => {
+      handleSend();
+    }, 500);
   });
-
-  // TTS for AI responses
-  const { isSpeaking, speak, stop: stopTTS } = useTTS();
 
   // Update input text with live transcript
   useEffect(() => {
@@ -89,28 +90,13 @@ function DebateScreenInner() {
     }
   }, [transcript, isListening]);
 
-  // Auto TTS when AI finishes responding (if not muted)
-  useEffect(() => {
-    if (!ttsEnabled || isStreaming || messages.length === 0) return;
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.role === 'ai' && lastMsg.content && !lastMsg.isStreaming) {
-      speak(lastMsg.content);
-    }
-  }, [isStreaming, ttsEnabled]);
-
-  // Stop TTS when user starts typing
-  useEffect(() => {
-    if (inputText.trim() && isSpeaking) stopTTS();
-  }, [inputText]);
-
   const handleMicPress = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
-      if (isSpeaking) stopTTS();
       startListening();
     }
-  }, [isListening, isSpeaking, startListening, stopListening, stopTTS]);
+  }, [isListening, startListening, stopListening]);
 
   // Trigger Siri orb when debate ends
   useEffect(() => {
@@ -363,13 +349,6 @@ function DebateScreenInner() {
             />
           </View>
           <View style={styles.turnRow}>
-            <Pressable
-              onPress={() => { setTtsEnabled((v) => !v); if (isSpeaking) stopTTS(); }}
-              style={[styles.voiceToggle, ttsEnabled && styles.voiceToggleActive]}
-              hitSlop={8}
-            >
-              <Ionicons name={ttsEnabled ? 'volume-high' : 'volume-mute'} size={16} color={ttsEnabled ? colors['on-primary'] : colors['on-surface-variant']} />
-            </Pressable>
             <View style={styles.turnBadge}>
               <Text style={styles.turnCounter}>{t('debate.turnShort', { current: Math.min(currentTurn, maxTurns), max: maxTurns })}</Text>
             </View>

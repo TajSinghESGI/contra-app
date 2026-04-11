@@ -21,6 +21,7 @@ import { Toast } from '@/components/ui/Toast';
 import { useFriendStore } from '@/store/friendStore';
 import { getChallengeDetail, sendChallengeMessage, type ChallengeDetail, type ChallengeMessageData } from '@/services/api';
 import { ChallengeSSE, type ChallengeSSEEvent } from '@/services/sse';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,24 @@ export default function ChallengeDebateScreen() {
   const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const voiceSendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isListening, transcript, isAvailable: voiceAvailable, startListening, stopListening } = useVoiceInput((text) => {
+    setInputText(text);
+    if (voiceSendTimer.current) clearTimeout(voiceSendTimer.current);
+    voiceSendTimer.current = setTimeout(() => {
+      handleSend();
+    }, 500);
+  });
+
+  useEffect(() => {
+    if (isListening && transcript) setInputText(transcript);
+  }, [transcript, isListening]);
+
+  const handleMicPress = useCallback(() => {
+    if (isListening) stopListening();
+    else startListening();
+  }, [isListening, startListening, stopListening]);
+
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isOver, setIsOver] = useState(false);
@@ -332,6 +351,9 @@ export default function ChallengeDebateScreen() {
             onQuickAction={handleQuickAction}
             disabled={!isMyTurn || isSending}
             paddingBottom={insets.bottom + 12}
+            isListening={isListening}
+            onMicPress={handleMicPress}
+            voiceAvailable={voiceAvailable}
           />
         </KeyboardStickyView>
       ) : null}

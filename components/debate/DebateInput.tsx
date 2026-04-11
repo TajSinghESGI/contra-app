@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fonts, radius, spacing, type ColorTokens } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useTranslation } from 'react-i18next';
+import { VoiceWaveform } from './VoiceWaveform';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo, useMemo, useRef } from 'react';
@@ -190,6 +191,11 @@ export const DebateInput = memo(function DebateInput({
                   focusProgress.value = withSpring(0, { damping: 40, stiffness: 500 });
                 }}
               />
+              {isListening && (
+                <View style={styles.waveformOverlay}>
+                  <VoiceWaveform isActive={isListening} />
+                </View>
+              )}
             </Animated.View>
           </View>
 
@@ -371,6 +377,17 @@ const createStyles = (colors: ColorTokens) => StyleSheet.create({
   },
   micBtnActive: {
     backgroundColor: colors.primary,
+  },
+  waveformOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors['surface-container-low'],
+    borderRadius: radius.lg,
   },
 });
 
